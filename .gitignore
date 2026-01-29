@@ -1,0 +1,6 @@
+SDK/Tools/GUI/
+SDK/Binaries/
+SDK/Firmware/*.zip
+
+.DS_Store
+.vscode

@@ -2,5 +2,7 @@ SDK/Tools/GUI/
 SDK/Binaries/
 SDK/Firmware/*.zip
 
+Drivers/API/Build_Platforms/nRF52840-DK/Output/Debug/
+
 .DS_Store
 .vscode

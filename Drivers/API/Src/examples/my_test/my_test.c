@@ -71,6 +71,11 @@ static uint32_t status_reg = 0;
 /* Preamble timeout, in multiple of PAC size. See NOTE 6 below. */
 #define PRE_TIMEOUT 5
 
+#define CLK_CTRL_ID                     0x11
+#define CLK_CTRL_OFFSET                 0x04
+#define CLK_CTRL_ACC_CLK_EN_BIT_MASK   (1 << 6)
+#define CLK_CTRL_ACC_MCLK_EN_BIT_MASK  (1 << 15)
+
 /* Timestamps of frames transmission/reception. */
 static uint64_t poll_rx_ts;
 static uint64_t resp_tx_ts;
@@ -137,6 +142,19 @@ int my_test(void)
     {
       dwt_configuretxrf(&txconfig_options_ch9);
     }
+
+    /* Enable accumulator clocks */
+    // dwt_or8bitoffsetreg(
+    //     dw, 
+    //     CLK_CTRL_ID, 
+    //     CLK_CTRL_OFFSET, 
+    //     CLK_CTRL_ACC_CLK_EN_BIT_MASK | CLK_CTRL_ACC_MCLK_EN_BIT_MASK
+    // );
+    // uint8_t clk;
+
+    // dwt_readfromdevice(CLK_CTRL_ID, CLK_CTRL_OFFSET, 1, &clk);
+    // clk |= CLK_CTRL_ACC_CLK_EN_BIT_MASK | CLK_CTRL_ACC_MCLK_EN_BIT_MASK;
+    // dwt_writetodevice(CLK_CTRL_ID, CLK_CTRL_OFFSET, 1, &clk);
     
 
     /* Apply default antenna delay value. See NOTE 1 below. */
@@ -264,6 +282,32 @@ int my_test(void)
                         /* Print computed distance on the console. */
                         sprintf(dist_str, "%lu DISTANCE: %3.2f m", ranging_samples, distance);
                         test_run_info((unsigned char *)dist_str);
+
+
+                        /* ---- READ CIR HERE ---- */
+                        uint32_t cir_raw[6];
+
+                        /* Read sample 0 of the preamble CIR */
+                        // dwt_readaccdata(cir_raw, 6, 0);
+                        // dwt_readcir(uint32_t *buffer, dwt_acc_idx_e cir_idx, uint16_t sample_offs, uint16_t num_samples, dwt_cir_read_mode_e mode)
+                        dwt_readcir(cir_raw, 0, 0, 1, 0);
+
+                        /* Decode signed 18-bit values */
+                        int32_t re = ((int32_t)cir_raw[0] << 16) |
+                                    ((int32_t)cir_raw[1] << 8)  |
+                                    (int32_t)cir_raw[2];
+                        re = (re << 14) >> 14;
+
+                        int32_t im = ((int32_t)cir_raw[3] << 16) |
+                                    ((int32_t)cir_raw[4] << 8)  |
+                                    (int32_t)cir_raw[5];
+                        im = (im << 14) >> 14;
+
+                        uint32_t mag = (uint32_t)(re * re + im * im);
+
+                        sprintf(dist_str, "CIR[0]: RE=%ld IM=%ld MAG2=%lu", re, im, mag);
+                        test_run_info((unsigned char *)dist_str);
+
 
                         /* as DS-TWR initiator is waiting for RNG_DELAY_MS before next poll transmission
                          * we can add a delay here before RX is re-enabled again

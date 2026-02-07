@@ -428,6 +428,13 @@ void build_examples(void)
     test_cnt++;
 #endif
 
+#ifdef MY_TEST_2
+    extern int my_test_2(void);
+
+    example_pointer = my_test_2;
+    test_cnt++;
+#endif
+
     // Check that only 1 test was enabled in test_selection.h file
     assert(test_cnt == 1);
 }

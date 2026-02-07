@@ -37,7 +37,7 @@ extern "C"
 //#define TEST_DOUBLE_BUFFER_RX
 //#define TEST_RX_TRIM
 //#define TEST_SIMPLE_RX_PDOA
-//#define TEST_SIMPLE_RX_CIR
+// #define TEST_SIMPLE_RX_CIR
 
 //#define TEST_SIMPLE_TX_STS_SDC
 //#define TEST_SIMPLE_RX_STS_SDC
@@ -98,7 +98,8 @@ extern "C"
 
 //#define TEST_SIMPLE_AES
 
-#define MY_TEST
+// #define MY_TEST
+#define MY_TEST_2
 
 #ifdef __cplusplus
 }

@@ -1,6 +1,6 @@
 /*! ----------------------------------------------------------------------------
- *  @file    simple_rx_cir.c
- *  @brief   Simple RX CIR example code
+ *  @file    TX_and_read_cir.c
+ *  @brief   TX AND READ CIR example code
  *
  * @author Decawave
  *
@@ -19,17 +19,31 @@
 #include <shared_defines.h>
 #include <shared_functions.h>
 
-#if defined(MY_TEST_2)
+#if defined(TX_AND_READ_CIR)
 
 extern void test_run_info(unsigned char *data);
 
 #define ARR_SZ(arr) (sizeof(arr)/sizeof(arr[0]))
 #define CLEAR_ARRAY(array, size) for(int i = 0; i < size; i++) array[i] = 0
 
-// #define PATH_TO_SAVE_CIR "/Users/simonrolly/Documents/uni/master/thesis/CIRs/cir_capture.txt"
-
 /* Example application name */
-#define APP_NAME "MY TEST 2 v1.0"
+#define APP_NAME "TX AND READ CIR v1.0"
+
+
+/* The frame sent in this example is an 802.15.4e standard blink. It is a 12-byte frame composed of the following fields:
+ *     - byte 0: frame type (0xC5 for a blink).
+ *     - byte 1: sequence number, incremented for each new frame.
+ *     - byte 2 -> 9: device ID, see NOTE 1 below.
+ */
+static uint8_t tx_msg[] = { 0xC5, 0, 'D', 'E', 'C', 'A', 'W', 'A', 'V', 'E' };
+/* Index to access to sequence number of the blink frame in the tx_msg array. */
+#define BLINK_FRAME_SN_IDX 1
+
+#define FRAME_LENGTH (sizeof(tx_msg) + FCS_LEN) // The real length that is going to be transmitted
+
+/* Inter-frame delay period, in milliseconds. */
+#define TX_DELAY_MS 500
+
 
 static uint8_t cir_buf[DWT_CIR_LEN_MAX * 2 * 3];  /* A complex sample takes up to 2 32-bit words */
 static char str_to_print[DWT_CIR_LEN_MAX * 2 * 3]; /* Buffer mostly used to print the CIR data in print_cir*/
@@ -93,70 +107,10 @@ static void print_cir(uint8_t *buf, int n_samples, dwt_cir_read_mode_e mode) {
     test_run_info((unsigned char *)"\n&_________________________________\r\n");
 }
 
-/* 
-    Store the CIR data in a file for later analysis.
-*/
-static void store_cir(uint8_t *buf, int n_samples, dwt_cir_read_mode_e mode)
-{
-    FILE *f = fopen("cir_capture.txt", "a");
-    if (f == NULL) {
-        return;
-    }
-
-    uint8_t *ptr = buf;
-
-    if (mode == DWT_CIR_READ_FULL) {
-        uint8_t lo_re, mid_re, hi_re, lo_img, mid_img, hi_img;
-        uint8_t sign_re, sign_img;
-        int32_t re, im;
-
-        while (n_samples--) {
-            lo_re = *ptr++;
-            mid_re = *ptr++;
-            hi_re = *ptr++;
-            sign_re = ((hi_re & 0x80) == 0x80) ? 0xFF : 0;
-
-            lo_img = *ptr++;
-            mid_img = *ptr++;
-            hi_img = *ptr++;
-            sign_img = ((hi_img & 0x80) == 0x80) ? 0xFF : 0;
-
-            re = (int32_t)((uint32_t)sign_re << 24 |
-                           (uint32_t)hi_re   << 16 |
-                           (uint32_t)mid_re  << 8  |
-                           lo_re);
-
-            im = (int32_t)((uint32_t)sign_img << 24 |
-                           (uint32_t)hi_img   << 16 |
-                           (uint32_t)mid_img  << 8  |
-                           lo_img);
-
-            fprintf(f, "%ld,%ld\n", (long)re, (long)im);
-        }
-    } else {
-        uint8_t lo_re, hi_re, lo_img, hi_img;
-        int16_t re, im;
-
-        while (n_samples--) {
-            lo_re = *ptr++;
-            hi_re = *ptr++;
-            lo_img = *ptr++;
-            hi_img = *ptr++;
-
-            re = (int16_t)((hi_re << 8) | lo_re);
-            im = (int16_t)((hi_img << 8) | lo_img);
-
-            fprintf(f, "%d,%d\n", (int)re, (int)im);
-        }
-    }
-
-    fclose(f);
-}
-
 /**
  * Application entry point.
  */
-int my_test_2(void)
+int TX_and_read_cir(void)
 {
     /* Print application name on the console. */
     test_run_info((unsigned char *)APP_NAME);
@@ -209,74 +163,56 @@ int my_test_2(void)
     /* Loop forever receiving frames. */
     while (TRUE)
     {
-        /* Enable the RX manually immediately. See Note 2. */
-        res = dwt_rxenable(DWT_START_RX_IMMEDIATE);
-        sprintf(str_to_print, "dwt_rxenable status 0x%x\r\n", res);
+        // /* Write frame data to DW IC and prepare transmission. See NOTE 3 below.*/
+        // dwt_writetxdata(FRAME_LENGTH - FCS_LEN, tx_msg, 0); /* Zero offset in TX buffer. */
+
+        // /* In this example since the length of the transmitted frame does not change,
+        //  * nor the other parameters of the dwt_writetxfctrl function, the
+        //  * dwt_writetxfctrl call could be outside the main while(1) loop.
+        //  */
+        // dwt_writetxfctrl(FRAME_LENGTH, 0, 0); /* Zero offset in TX buffer, no ranging. */
+
+        // /* Start transmission. */
+        // dwt_starttx(DWT_START_TX_IMMEDIATE);
+        // /* Poll DW IC until TX frame sent event set. See NOTE 4 below.
+        //  * STATUS register is 4 bytes long but, as the event we are looking
+        //  * at is in the first byte of the register, we can use this simplest
+        //  * API function to access it.*/
+        // waitforsysstatus(NULL, NULL, DWT_INT_TXFRS_BIT_MASK, 0);
+
+        // /* Clear TX frame sent event. */
+        // dwt_writesysstatuslo(DWT_INT_TXFRS_BIT_MASK);
+
+        // test_run_info((unsigned char *)"TX Frame Sent");
+        test_run_info((unsigned char *)"TX Frame NOT Sent");
+
+        Sleep(1000);
+
+        sprintf(str_to_print,"Printing Ipatov CIR\r\n");
         test_run_info((unsigned char *)str_to_print);
+        
+        /* Start reading CIR data from Ipatov offset */
+        dwt_acc_idx_e acc_idx = DWT_ACC_IDX_IP_M ;
+        
+        /*
+            Choose the mode you want to print the data:
+                - DWT_CIR_READ_FULL
+                - DWT_CIR_READ_LO
+                - DWT_CIR_READ_MID
+                - DWT_CIR_READ_HI
+        */
+        dwt_cir_read_mode_e modes = DWT_CIR_READ_FULL; 
 
-        sprintf(str_to_print,"Waiting for a packet ...\r\n");
-        test_run_info((unsigned char *)str_to_print);
+        /* Ipatov data */
+        int n_samples = n_samples_ipatov;
+        dwt_readcir((uint32_t*)cir_buf, acc_idx, 0, n_samples, modes);
+        print_cir(cir_buf, n_samples, modes);
 
-        /* Poll until data received. See Note 3. */
-        uint32_t status_reg;
-        waitforsysstatus(&status_reg, NULL, (DWT_INT_RXFCG_BIT_MASK | SYS_STATUS_ALL_RX_ERR), 0);
+        /* Execute a delay between transmissions. */
+        Sleep(TX_DELAY_MS);
 
-        if (status_reg & DWT_INT_RXFCG_BIT_MASK){
-            uint16_t frame_len;
-            uint8_t ranging;
-
-            /* A frame has been received, show its length. */
-            frame_len = dwt_getframelength(&ranging); /* Also can check if the ranging bit was set */
-            sprintf(str_to_print,"Frame Received len %d\r\n", frame_len);
-            test_run_info((unsigned char *)str_to_print);
-
-            Sleep(10); 
-
-            sprintf(str_to_print,"Printing Ipatov CIR\r\n");
-            test_run_info((unsigned char *)str_to_print);
-            
-            /* Start reading CIR data from Ipatov offset */
-            dwt_acc_idx_e acc_idx = DWT_ACC_IDX_IP_M ;
-            
-            /*
-                Choose the mode you want to print the data:
-                    - DWT_CIR_READ_FULL
-                    - DWT_CIR_READ_LO
-                    - DWT_CIR_READ_MID
-                    - DWT_CIR_READ_HI
-            */
-            dwt_cir_read_mode_e modes = DWT_CIR_READ_FULL; 
-
-            /* Ipatov data */
-            int n_samples = n_samples_ipatov;
-            dwt_readcir((uint32_t*)cir_buf, acc_idx, 0, n_samples, modes);
-            print_cir(cir_buf, n_samples, modes);
-            
-            // /* STS0 data, not always available, it depends on the STS and PDOA mode. */
-            // CLEAR_ARRAY(cir_buf,sizeof(cir_buf));
-            // sprintf(str_to_print,"\r\nPrinting STS0 CIR\r\n");
-            // test_run_info((unsigned char *)str_to_print);
-            // acc_idx = DWT_ACC_IDX_STS0_M;
-            // n_samples = DWT_CIR_LEN_STS;
-            // dwt_readcir((uint32_t*)cir_buf, acc_idx, 0, n_samples, modes);
-            // print_cir(cir_buf, n_samples, modes);
-            
-            // ///* STS1 data, not always available, it depends on the STS and PDOA mode. */
-            // CLEAR_ARRAY(cir_buf,sizeof(cir_buf));
-            // sprintf(str_to_print,"\r\nPrinting STS1 CIR\r\n");
-            // test_run_info((unsigned char *)str_to_print);
-            // acc_idx = DWT_ACC_IDX_STS1_M;
-            // dwt_readcir((uint32_t*)cir_buf, acc_idx, 0, n_samples, modes);
-            // print_cir(cir_buf, n_samples, modes);
-
-            /* Clear good RX frame event in the DW IC status register. */
-            dwt_writesysstatuslo(DWT_INT_RXFCG_BIT_MASK);
-        }else{
-            /* Clear RX error events in the DW IC status register. */
-            dwt_writesysstatuslo(SYS_STATUS_ALL_RX_ERR);
-            sprintf(str_to_print,"RX error\r\n");
-            test_run_info((unsigned char *)str_to_print);
-        }
+        /* Increment the blink frame sequence number (modulo 256). */
+        tx_msg[BLINK_FRAME_SN_IDX]++;
     }
 
 }

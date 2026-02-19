@@ -250,6 +250,7 @@
           <file file_name="$(DW3000APIDir)/Src/examples/shared_data/shared_functions.c" />
         </folder>
         <file file_name="$(DW3000APIDir)/Src/config_options.c" />
+        <file file_name="../../Src/examples/my_test_2/my_test_2.c" />
       </folder>
       <folder Name="platform">
         <file file_name="Source/platform/deca_mutex.c" />
@@ -307,6 +308,9 @@
         <file file_name="../../Shared/dwt_uwb_driver/deca_rsl.h" />
       </folder>
       <file file_name="Source/main.c" />
+      <file file_name="../../Src/examples/marco_polo/simple_initiator.c" />
+      <file file_name="../../Src/examples/marco_polo/simple_responder.c" />
+      <file file_name="../../Src/examples/my_test_3/TX_and_read_cir.c" />
     </folder>
     <folder Name="System">
       <file file_name="$(NordicSDKDir)/modules/nrfx/mdk/ses_startup_nrf52840.s" />

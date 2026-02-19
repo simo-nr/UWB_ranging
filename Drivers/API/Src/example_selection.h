@@ -62,8 +62,8 @@ extern "C"
 //#define TEST_DS_TWR_STS_SDC_INITIATOR
 //#define TEST_DS_TWR_STS_SDC_RESPONDER
 
-//#define TEST_SS_TWR_INITIATOR
-//#define TEST_SS_TWR_RESPONDER
+// #define TEST_SS_TWR_INITIATOR
+// #define TEST_SS_TWR_RESPONDER
 
 //#define TEST_SS_TWR_INITIATOR_STS
 //#define TEST_SS_TWR_RESPONDER_STS
@@ -99,7 +99,11 @@ extern "C"
 //#define TEST_SIMPLE_AES
 
 // #define MY_TEST
-#define MY_TEST_2
+// #define MY_TEST_2
+// #define TX_AND_READ_CIR
+
+#define SIMPLE_INITIATOR
+// #define SIMPLE_RESPONDER
 
 #ifdef __cplusplus
 }

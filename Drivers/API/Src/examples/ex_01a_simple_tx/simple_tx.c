@@ -25,7 +25,7 @@ extern void test_run_info(unsigned char *data);
 /* Example application name */
 #define APP_NAME "SIMPLE TX v1.0"
 
-#define USE_SPI2 1 // set this to 1 to use DW37X0 SPI2
+#define USE_SPI2 0 // set this to 1 to use DW37X0 SPI2
 
 /* The frame sent in this example is an 802.15.4e standard blink. It is a 12-byte frame composed of the following fields:
  *     - byte 0: frame type (0xC5 for a blink).

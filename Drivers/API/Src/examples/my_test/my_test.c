@@ -31,12 +31,14 @@ extern void test_run_info(unsigned char *data);
 /* Example application name */
 #define APP_NAME "MY TEST DS TWR RESP CIR v0.1"
 
+#define ACTUAL_DISTANCE 2.0 
+
 /* Inter-ranging delay period, in milliseconds. */
 #define RNG_DELAY_MS 20 // 1000
 
 /* Default antenna delay values for 64 MHz PRF. See NOTE 1 below. */
-#define TX_ANT_DLY 16385
-#define RX_ANT_DLY 16385
+#define TX_ANT_DLY (16385 + 74)
+#define RX_ANT_DLY (16385 + 74)
 
 /* Frames used in the ranging process. See NOTE 2 below. */
 static uint8_t rx_poll_msg[] = { 0x41, 0x88, 0, 0xCA, 0xDE, 'W', 'A', 'V', 'E', 0x21, 0, 0 };
@@ -168,8 +170,10 @@ int my_test(void)
 
     uint32_t ranging_samples = 0;
 
+    double cum_dist = 0.0;
     /* Loop forever responding to ranging requests. */
-    while (1)
+    // while (1)
+    while (ranging_samples < 1000)
     {
         dwt_setpreambledetecttimeout(0);
         /* Clear reception timeout to start next ranging process. */
@@ -282,31 +286,31 @@ int my_test(void)
                         /* Print computed distance on the console. */
                         sprintf(dist_str, "%lu DISTANCE: %3.2f m", ranging_samples, distance);
                         test_run_info((unsigned char *)dist_str);
+                        cum_dist += distance;
 
+                        // /* ---- READ CIR HERE ---- */
+                        // uint32_t cir_raw[6];
 
-                        /* ---- READ CIR HERE ---- */
-                        uint32_t cir_raw[6];
+                        // /* Read sample 0 of the preamble CIR */
+                        // // dwt_readaccdata(cir_raw, 6, 0);
+                        // // dwt_readcir(uint32_t *buffer, dwt_acc_idx_e cir_idx, uint16_t sample_offs, uint16_t num_samples, dwt_cir_read_mode_e mode)
+                        // dwt_readcir(cir_raw, 0, 0, 1, 0);
 
-                        /* Read sample 0 of the preamble CIR */
-                        // dwt_readaccdata(cir_raw, 6, 0);
-                        // dwt_readcir(uint32_t *buffer, dwt_acc_idx_e cir_idx, uint16_t sample_offs, uint16_t num_samples, dwt_cir_read_mode_e mode)
-                        dwt_readcir(cir_raw, 0, 0, 1, 0);
+                        // /* Decode signed 18-bit values */
+                        // int32_t re = ((int32_t)cir_raw[0] << 16) |
+                        //             ((int32_t)cir_raw[1] << 8)  |
+                        //             (int32_t)cir_raw[2];
+                        // re = (re << 14) >> 14;
 
-                        /* Decode signed 18-bit values */
-                        int32_t re = ((int32_t)cir_raw[0] << 16) |
-                                    ((int32_t)cir_raw[1] << 8)  |
-                                    (int32_t)cir_raw[2];
-                        re = (re << 14) >> 14;
+                        // int32_t im = ((int32_t)cir_raw[3] << 16) |
+                        //             ((int32_t)cir_raw[4] << 8)  |
+                        //             (int32_t)cir_raw[5];
+                        // im = (im << 14) >> 14;
 
-                        int32_t im = ((int32_t)cir_raw[3] << 16) |
-                                    ((int32_t)cir_raw[4] << 8)  |
-                                    (int32_t)cir_raw[5];
-                        im = (im << 14) >> 14;
+                        // uint32_t mag = (uint32_t)(re * re + im * im);
 
-                        uint32_t mag = (uint32_t)(re * re + im * im);
-
-                        sprintf(dist_str, "CIR[0]: RE=%ld IM=%ld MAG2=%lu", re, im, mag);
-                        test_run_info((unsigned char *)dist_str);
+                        // sprintf(dist_str, "CIR[0]: RE=%ld IM=%ld MAG2=%lu", re, im, mag);
+                        // test_run_info((unsigned char *)dist_str);
 
 
                         /* as DS-TWR initiator is waiting for RNG_DELAY_MS before next poll transmission
@@ -328,6 +332,20 @@ int my_test(void)
             dwt_writesysstatuslo(SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR);
         }
     }
+    // print ranging samples and total distance
+    sprintf(dist_str, "TOTAL DISTANCE: %3.2f m, NUMBER OF SAMPLES: %d", cum_dist, ranging_samples);
+    test_run_info((unsigned char *)dist_str);
+
+    double avg_dist = cum_dist / (double)ranging_samples;
+    sprintf(dist_str, "AVG DISTANCE: %3.2f m", avg_dist);
+    test_run_info((unsigned char *)dist_str);
+
+    double error = avg_dist - ACTUAL_DISTANCE;
+    double error_per_side = error / 2.0;
+    int delay_units = (int)(error_per_side / (SPEED_OF_LIGHT * DWT_TIME_UNITS));
+
+    sprintf(dist_str, "ERROR: %3.2f m, ERROR PER SIDE: %3.2f m, DELAY UNITS: %d", error, error_per_side, delay_units);
+    test_run_info((unsigned char *)dist_str);
 }
 #endif
 /*****************************************************************************************************************************************************

@@ -9,7 +9,6 @@
  *
  */
 
-// #include <stdio.h>
 #include "deca_probe_interface.h"
 #include <config_options.h>
 #include <deca_device_api.h>
@@ -19,17 +18,15 @@
 #include <shared_defines.h>
 #include <shared_functions.h>
 
-#if defined(MY_TEST_2)
+#if defined(TX_AND_READ_CIR)
 
 extern void test_run_info(unsigned char *data);
 
 #define ARR_SZ(arr) (sizeof(arr)/sizeof(arr[0]))
 #define CLEAR_ARRAY(array, size) for(int i = 0; i < size; i++) array[i] = 0
 
-// #define PATH_TO_SAVE_CIR "/Users/simonrolly/Documents/uni/master/thesis/CIRs/cir_capture.txt"
-
 /* Example application name */
-#define APP_NAME "MY TEST 2 v1.0"
+#define APP_NAME "SIMPLE RX CIR v1.0"
 
 static uint8_t cir_buf[DWT_CIR_LEN_MAX * 2 * 3];  /* A complex sample takes up to 2 32-bit words */
 static char str_to_print[DWT_CIR_LEN_MAX * 2 * 3]; /* Buffer mostly used to print the CIR data in print_cir*/
@@ -40,123 +37,45 @@ extern dwt_config_t config_options;
 */
 static void print_cir(uint8_t *buf, int n_samples, dwt_cir_read_mode_e mode) {
     uint8_t *ptr = buf;
-    test_run_info((unsigned char *)"\n&_________________________________\r\n");
+    test_run_info((unsigned char *)"\n_________________________________\r\n");
     CLEAR_ARRAY(str_to_print, sizeof(str_to_print));
 
     if (mode == DWT_CIR_READ_FULL) {
         uint8_t lo_re, mid_re, hi_re, lo_img, mid_img, hi_img;
         uint8_t sign_re, sign_img;
-        int32_t re, im;
-
         while(n_samples--){
             lo_re = *ptr++;
             mid_re = *ptr++;
             hi_re = *ptr++;
-            sign_re = ((hi_re & 0x80) == 0x80) ? 0xFF : 0;
+            sign_re = ((hi_re&0x80) == 0x80) ? 0xFF : 0;
             lo_img = *ptr++;
             mid_img = *ptr++;
             hi_img = *ptr++;
-            sign_img = ((hi_img & 0x80) == 0x80) ? 0xFF : 0;
-
-            re = (int32_t)((uint32_t)sign_re<<24 | 
-                           (uint32_t)hi_re<<16 | 
-                           (uint32_t)mid_re<<8 | 
-                           lo_re);
-            im = (int32_t)((uint32_t)sign_img<<24 | 
-                           (uint32_t)hi_img<<16 | 
-                           (uint32_t)mid_img<<8 | 
-                           lo_img);
-
-            sprintf(str_to_print, "%ld,%ld,", re, im);
+            sign_img = ((hi_img&0x80) == 0x80) ? 0xFF : 0;
+            sprintf(str_to_print, "%ld,%ld,", (int32_t)((uint32_t)sign_re<<24 | (uint32_t)hi_re<<16 | (uint32_t)mid_re<<8 | lo_re), (int32_t)((uint32_t)sign_img<<24 | (uint32_t)hi_img<<16 | (uint32_t)mid_img<<8 | lo_img));
             test_run_info((unsigned char *)str_to_print);   
             nrf_delay_ms(1); // Delay to allow the UART to keep up with the data
         }
     }
     else {
         uint8_t lo_re, hi_re, lo_img, hi_img;
-        int16_t re, im;
-
-        while (n_samples--) {
+        while(n_samples--){
             lo_re = *ptr++;
             hi_re = *ptr++;
             lo_img = *ptr++;
             hi_img = *ptr++;
-
-            re = (int16_t)((hi_re << 8) | lo_re);
-            im = (int16_t)((hi_img << 8) | lo_img);
-
-            sprintf(str_to_print, "%d,%d\n", (int)re, (int)im);
+            sprintf(str_to_print, "%ld,%ld,", "%d,%d,", (int16_t)(hi_re<<8 | lo_re), (int16_t)(hi_img<<8 | lo_img));
             test_run_info((unsigned char *)str_to_print);
-            nrf_delay_ms(1);
+            nrf_delay_ms(1); // Delay to allow the UART to keep up with the data
         }
     }
-    test_run_info((unsigned char *)"\n&_________________________________\r\n");
-}
-
-/* 
-    Store the CIR data in a file for later analysis.
-*/
-static void store_cir(uint8_t *buf, int n_samples, dwt_cir_read_mode_e mode)
-{
-    FILE *f = fopen("cir_capture.txt", "a");
-    if (f == NULL) {
-        return;
-    }
-
-    uint8_t *ptr = buf;
-
-    if (mode == DWT_CIR_READ_FULL) {
-        uint8_t lo_re, mid_re, hi_re, lo_img, mid_img, hi_img;
-        uint8_t sign_re, sign_img;
-        int32_t re, im;
-
-        while (n_samples--) {
-            lo_re = *ptr++;
-            mid_re = *ptr++;
-            hi_re = *ptr++;
-            sign_re = ((hi_re & 0x80) == 0x80) ? 0xFF : 0;
-
-            lo_img = *ptr++;
-            mid_img = *ptr++;
-            hi_img = *ptr++;
-            sign_img = ((hi_img & 0x80) == 0x80) ? 0xFF : 0;
-
-            re = (int32_t)((uint32_t)sign_re << 24 |
-                           (uint32_t)hi_re   << 16 |
-                           (uint32_t)mid_re  << 8  |
-                           lo_re);
-
-            im = (int32_t)((uint32_t)sign_img << 24 |
-                           (uint32_t)hi_img   << 16 |
-                           (uint32_t)mid_img  << 8  |
-                           lo_img);
-
-            fprintf(f, "%ld,%ld\n", (long)re, (long)im);
-        }
-    } else {
-        uint8_t lo_re, hi_re, lo_img, hi_img;
-        int16_t re, im;
-
-        while (n_samples--) {
-            lo_re = *ptr++;
-            hi_re = *ptr++;
-            lo_img = *ptr++;
-            hi_img = *ptr++;
-
-            re = (int16_t)((hi_re << 8) | lo_re);
-            im = (int16_t)((hi_img << 8) | lo_img);
-
-            fprintf(f, "%d,%d\n", (int)re, (int)im);
-        }
-    }
-
-    fclose(f);
+    test_run_info((unsigned char *)"\n_________________________________\r\n");
 }
 
 /**
  * Application entry point.
  */
-int my_test_2(void)
+int simple_rx_cir(void)
 {
     /* Print application name on the console. */
     test_run_info((unsigned char *)APP_NAME);
@@ -230,8 +149,6 @@ int my_test_2(void)
             sprintf(str_to_print,"Frame Received len %d\r\n", frame_len);
             test_run_info((unsigned char *)str_to_print);
 
-            Sleep(10); 
-
             sprintf(str_to_print,"Printing Ipatov CIR\r\n");
             test_run_info((unsigned char *)str_to_print);
             
@@ -252,22 +169,22 @@ int my_test_2(void)
             dwt_readcir((uint32_t*)cir_buf, acc_idx, 0, n_samples, modes);
             print_cir(cir_buf, n_samples, modes);
             
-            // /* STS0 data, not always available, it depends on the STS and PDOA mode. */
-            // CLEAR_ARRAY(cir_buf,sizeof(cir_buf));
-            // sprintf(str_to_print,"\r\nPrinting STS0 CIR\r\n");
-            // test_run_info((unsigned char *)str_to_print);
-            // acc_idx = DWT_ACC_IDX_STS0_M;
-            // n_samples = DWT_CIR_LEN_STS;
-            // dwt_readcir((uint32_t*)cir_buf, acc_idx, 0, n_samples, modes);
-            // print_cir(cir_buf, n_samples, modes);
+            /* STS0 data, not always available, it depends on the STS and PDOA mode. */
+            CLEAR_ARRAY(cir_buf,sizeof(cir_buf));
+            sprintf(str_to_print,"\r\nPrinting STS0 CIR\r\n");
+            test_run_info((unsigned char *)str_to_print);
+            acc_idx = DWT_ACC_IDX_STS0_M;
+            n_samples = DWT_CIR_LEN_STS;
+            dwt_readcir((uint32_t*)cir_buf, acc_idx, 0, n_samples, modes);
+            print_cir(cir_buf, n_samples, modes);
             
-            // ///* STS1 data, not always available, it depends on the STS and PDOA mode. */
-            // CLEAR_ARRAY(cir_buf,sizeof(cir_buf));
-            // sprintf(str_to_print,"\r\nPrinting STS1 CIR\r\n");
-            // test_run_info((unsigned char *)str_to_print);
-            // acc_idx = DWT_ACC_IDX_STS1_M;
-            // dwt_readcir((uint32_t*)cir_buf, acc_idx, 0, n_samples, modes);
-            // print_cir(cir_buf, n_samples, modes);
+            ///* STS1 data, not always available, it depends on the STS and PDOA mode. */
+            CLEAR_ARRAY(cir_buf,sizeof(cir_buf));
+            sprintf(str_to_print,"\r\nPrinting STS1 CIR\r\n");
+            test_run_info((unsigned char *)str_to_print);
+            acc_idx = DWT_ACC_IDX_STS1_M;
+            dwt_readcir((uint32_t*)cir_buf, acc_idx, 0, n_samples, modes);
+            print_cir(cir_buf, n_samples, modes);
 
             /* Clear good RX frame event in the DW IC status register. */
             dwt_writesysstatuslo(DWT_INT_RXFCG_BIT_MASK);

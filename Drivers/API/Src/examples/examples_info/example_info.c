@@ -435,6 +435,27 @@ void build_examples(void)
     test_cnt++;
 #endif
 
+#ifdef TX_AND_READ_CIR
+    extern int TX_and_read_cir(void);
+
+    example_pointer = TX_and_read_cir;
+    test_cnt++;
+#endif
+
+#ifdef SIMPLE_INITIATOR
+    extern int simple_initiator(void);
+
+    example_pointer = simple_initiator;
+    test_cnt++;
+#endif
+
+#ifdef SIMPLE_RESPONDER
+    extern int simple_responder(void);
+
+    example_pointer = simple_responder;
+    test_cnt++;
+#endif
+
     // Check that only 1 test was enabled in test_selection.h file
     assert(test_cnt == 1);
 }

@@ -379,6 +379,22 @@ int simple_initiator(void)
          * API function to access it.*/
         waitforsysstatus(NULL, NULL, DWT_INT_TXFRS_BIT_MASK, 0);
 
+        /* Read TX timestamp here */
+        uint8_t ts[5];
+        uint64_t tx_time = 0;
+
+        dwt_readtxtimestamp(ts);
+
+        tx_time = ((uint64_t)ts[0]) |
+                ((uint64_t)ts[1] << 8) |
+                ((uint64_t)ts[2] << 16) |
+                ((uint64_t)ts[3] << 24) |
+                ((uint64_t)ts[4] << 32);
+
+        sprintf(str_to_print, "TX_TIME (40b) = 0x%02X%02X%02X%02X%02X (%llu)\r\n",
+                ts[4], ts[3], ts[2], ts[1], ts[0], (unsigned long long)tx_time);
+        test_run_info((unsigned char *)str_to_print);
+
         /* Clear TX frame sent event. */
         dwt_writesysstatuslo(DWT_INT_TXFRS_BIT_MASK);
 

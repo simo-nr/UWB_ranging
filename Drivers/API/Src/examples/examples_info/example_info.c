@@ -456,6 +456,20 @@ void build_examples(void)
     test_cnt++;
 #endif
 
+#ifdef READING_DATA
+    extern int reading_data(void);
+
+    example_pointer = reading_data;
+    test_cnt++;
+#endif
+
+#ifdef SENDING_TIMESTAMPS
+    extern int sending_timestamps(void);
+
+    example_pointer = sending_timestamps;
+    test_cnt++;
+#endif
+
     // Check that only 1 test was enabled in test_selection.h file
     assert(test_cnt == 1);
 }

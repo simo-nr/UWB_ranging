@@ -320,7 +320,7 @@
     #define CONFIG_OPTION CONFIG_OPTION_35
 #elif defined(TX_AND_READ_CIR)
     #define CONFIG_OPTION CONFIG_OPTION_35
-#elif defined(SIMPLE_INITIATOR) || defined(SIMPLE_RESPONDER)
+#elif defined(SIMPLE_INITIATOR) || defined(SIMPLE_RESPONDER) || defined(READING_DATA) || defined(SENDING_TIMESTAMPS)
     #define CONFIG_OPTION CONFIG_OPTION_35
     
 #else

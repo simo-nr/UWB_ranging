@@ -307,7 +307,10 @@
         <file file_name="../../Shared/dwt_uwb_driver/deca_rsl.c" />
         <file file_name="../../Shared/dwt_uwb_driver/deca_rsl.h" />
       </folder>
+      <file file_name="../../Src/examples/marco_polo/helpers.c" />
       <file file_name="Source/main.c" />
+      <file file_name="../../Src/examples/my_test/reading_data.c" />
+      <file file_name="../../Src/examples/my_test/sending_timestamps.c" />
       <file file_name="../../Src/examples/marco_polo/simple_initiator.c" />
       <file file_name="../../Src/examples/marco_polo/simple_responder.c" />
       <file file_name="../../Src/examples/my_test_3/TX_and_read_cir.c" />

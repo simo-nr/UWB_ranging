@@ -470,6 +470,7 @@ void build_examples(void)
     test_cnt++;
 #endif
 
+
     // Check that only 1 test was enabled in test_selection.h file
     assert(test_cnt == 1);
 }

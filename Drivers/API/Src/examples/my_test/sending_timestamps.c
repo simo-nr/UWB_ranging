@@ -30,8 +30,9 @@ extern void test_run_info(unsigned char *data);
 #define RESP_MSG_COMMON_LEN 10
 #define RESP_MSG_POLL_RX_TS_IDX RESP_MSG_COMMON_LEN
 #define RESP_MSG_RESP_TX_TS_IDX (RESP_MSG_POLL_RX_TS_IDX + 5)
-// #define RESP_MSG_TS_LEN 10
-#define RESP_TX_DELAY_UUS 700
+#define RESP_MSG_DELAY_UUS_IDX (RESP_MSG_RESP_TX_TS_IDX + 5)
+#define RESP_MSG_DELAY_UUS_LEN 4
+#define RESP_TX_DELAY_UUS 1500
 
 #define TX_ANT_DLY 16385
 #define RX_ANT_DLY 16385
@@ -39,7 +40,8 @@ extern void test_run_info(unsigned char *data);
 static uint8_t tx_msg[] = {
     0xC5, 0, 'R', 'E', 'S', 'P', 'O', 'N', 'S', 'E',
     0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0
+    0, 0, 0, 0, 0,
+    0, 0, 0, 0
 };
 #define FRAME_LENGTH (sizeof(tx_msg) + FCS_LEN) // The real length that is going to be transmitted
 
@@ -59,6 +61,14 @@ static void write_timestamp_to_msg(uint8_t *buffer, uint64_t ts)
     buffer[4] = (uint8_t)(ts >> 32);
 }
 
+static void write_u32_to_msg(uint8_t *buffer, uint32_t value)
+{
+    buffer[0] = (uint8_t)value;
+    buffer[1] = (uint8_t)(value >> 8);
+    buffer[2] = (uint8_t)(value >> 16);
+    buffer[3] = (uint8_t)(value >> 24);
+}
+
 /**
  * Application entry point.
  */
@@ -68,9 +78,17 @@ int sending_timestamps(void)
     uint32_t status_reg;
     /* Hold copy of frame length of frame received (if good) so that it can be examined at a debug breakpoint. */
     uint16_t frame_len;
+
     uint64_t poll_rx_ts;
     uint64_t resp_tx_ts;
+    uint64_t actual_tx_ts; // for scheduling tx
     uint32_t resp_tx_time;
+
+    int16_t clock_offset_raw;
+    double clock_offset_ppm;
+    double delay_scale;
+    uint64_t corrected_delay_dtu;
+
     char str_to_print[200];
 
     /* Print application name on the console. */
@@ -148,8 +166,18 @@ int sending_timestamps(void)
 
             poll_rx_ts = get_rx_timestamp_u64();
 
-            /* Schedule the response so its TX timestamp is known in advance and can be inserted into the frame. */
-            resp_tx_time = (uint32_t)((poll_rx_ts + ((uint64_t)RESP_TX_DELAY_UUS * UUS_TO_DWT_TIME)) >> 8);
+            clock_offset_raw = dwt_readclockoffset();
+            clock_offset_ppm = ((double)clock_offset_raw * 1000000.0) / 67108864.0;
+
+            /*
+            * Positive clock_offset_ppm means responder(local) clock is faster than
+            * initiator(remote). So to produce the same delay in the initiator domain,
+            * we need a slightly larger local delay.
+            */
+            delay_scale = 1.0 + (clock_offset_ppm / 1000000.0);
+            corrected_delay_dtu = (uint64_t)(((double)RESP_TX_DELAY_UUS * (double)UUS_TO_DWT_TIME) * delay_scale);
+
+            resp_tx_time = (uint32_t)((poll_rx_ts + corrected_delay_dtu) >> 8);
             dwt_setdelayedtrxtime(resp_tx_time);
 
             /* The actual 40-bit TX timestamp corresponding to the delayed transmission. */
@@ -157,12 +185,8 @@ int sending_timestamps(void)
 
             write_timestamp_to_msg(&tx_msg[RESP_MSG_POLL_RX_TS_IDX], poll_rx_ts);
             write_timestamp_to_msg(&tx_msg[RESP_MSG_RESP_TX_TS_IDX], resp_tx_ts);
-
-            sprintf(str_to_print,
-                    "poll_rx_ts=0x%010llX resp_tx_ts=0x%010llX\r\n",
-                    (unsigned long long)poll_rx_ts,
-                    (unsigned long long)resp_tx_ts);
-            test_run_info((unsigned char *)str_to_print);
+            uint32_t scheduled_delay_dtu = (uint32_t)(resp_tx_ts - poll_rx_ts);
+            write_u32_to_msg(&tx_msg[RESP_MSG_DELAY_UUS_IDX], scheduled_delay_dtu);
 
             /* Write frame data to DW IC and prepare delayed transmission. */
             dwt_writetxdata(FRAME_LENGTH - FCS_LEN, tx_msg, 0); /* Zero offset in TX buffer. */
@@ -173,9 +197,21 @@ int sending_timestamps(void)
                 waitforsysstatus(NULL, NULL, DWT_INT_TXFRS_BIT_MASK, 0);
                 dwt_writesysstatuslo(DWT_INT_TXFRS_BIT_MASK);
 
+                actual_tx_ts = get_tx_timestamp_u64();
+
+                sprintf(str_to_print,
+                        "poll_rx_ts=0x%010llX clkoff_raw=%d clkoff_ppm=%.3f corrected_delay_dtu=%llu scheduled_delay_dtu=%u resp_tx_ts=0x%010llX\r\n",
+                        (unsigned long long)poll_rx_ts,
+                        (int)clock_offset_raw,
+                        clock_offset_ppm,
+                        (unsigned long long)corrected_delay_dtu,
+                        (unsigned int)scheduled_delay_dtu,
+                        (unsigned long long)resp_tx_ts);
+                test_run_info((unsigned char *)str_to_print);
+
                 sprintf(str_to_print,
                         "RESPONSE Frame Sent actual_tx_ts=0x%010llX\r\n",
-                        (unsigned long long)get_tx_timestamp_u64());
+                        (unsigned long long)actual_tx_ts);
                 test_run_info((unsigned char *)str_to_print);
             }
             else
@@ -185,6 +221,16 @@ int sending_timestamps(void)
         }
         else
         {
+            sprintf(str_to_print,
+                    "poll_rx_ts=0x%010llX clkoff_raw=%d clkoff_ppm=%.3f corrected_delay_dtu=%llu scheduled_delay_dtu=%u resp_tx_ts=0x%010llX\r\n",
+                    (unsigned long long)poll_rx_ts,
+                    (int)clock_offset_raw,
+                    clock_offset_ppm,
+                    (unsigned long long)corrected_delay_dtu,
+                    (unsigned int)scheduled_delay_dtu,
+                    (unsigned long long)resp_tx_ts);
+            test_run_info((unsigned char *)str_to_print);
+
             /* Clear RX error events in the DW IC status register. */
             dwt_writesysstatuslo(SYS_STATUS_ALL_RX_ERR);
         }

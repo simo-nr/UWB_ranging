@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include "deca_private.h"
+#include "helpers.h"
 
 #if defined(SIMPLE_INITIATOR)
 

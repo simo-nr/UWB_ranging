@@ -85,7 +85,7 @@ int sending_timestamps(void)
     uint32_t resp_tx_time;
 
     int16_t clock_offset_raw;
-    double clock_offset_ppm;
+    double clock_offset_frac;
     double delay_scale;
     uint64_t corrected_delay_dtu;
 
@@ -166,15 +166,19 @@ int sending_timestamps(void)
 
             poll_rx_ts = get_rx_timestamp_u64();
 
-            clock_offset_raw = dwt_readclockoffset();
-            clock_offset_ppm = ((double)clock_offset_raw * 1000000.0) / 67108864.0;
+            clock_offset_raw = dwt_readclockoffset(); // TODO: remove this and use carrier integrator instead
+            // clock is x parts per million off
+            clock_offset_frac = ((double)clock_offset_raw / 67108864.0);
+            
+            uint8_t trim_base = dwt_getxtaltrim();
+            int32_t carrier_integrator = dwt_readcarrierintegrator();
 
             /*
             * Positive clock_offset_ppm means responder(local) clock is faster than
             * initiator(remote). So to produce the same delay in the initiator domain,
             * we need a slightly larger local delay.
             */
-            delay_scale = 1.0 + (clock_offset_ppm / 1000000.0);
+            delay_scale = 1.0 + clock_offset_frac;
             corrected_delay_dtu = (uint64_t)(((double)RESP_TX_DELAY_UUS * (double)UUS_TO_DWT_TIME) * delay_scale);
 
             resp_tx_time = (uint32_t)((poll_rx_ts + corrected_delay_dtu) >> 8);
@@ -199,6 +203,15 @@ int sending_timestamps(void)
 
                 actual_tx_ts = get_tx_timestamp_u64();
 
+                double clock_offset_ppm = clock_offset_frac * 1e6;
+                // print xtal trim, clock offset and delay info
+                sprintf(str_to_print,
+                        "trim_base=%u clock_offset_raw=%d clock_offset_ppm=%.3f",
+                        (unsigned)trim_base,
+                        (int)clock_offset_raw,
+                        clock_offset_ppm);
+                test_run_info((unsigned char *)str_to_print);
+
                 sprintf(str_to_print,
                         "poll_rx_ts=0x%010llX clkoff_raw=%d clkoff_ppm=%.3f corrected_delay_dtu=%llu scheduled_delay_dtu=%u resp_tx_ts=0x%010llX\r\n",
                         (unsigned long long)poll_rx_ts,
@@ -207,6 +220,18 @@ int sending_timestamps(void)
                         (unsigned long long)corrected_delay_dtu,
                         (unsigned int)scheduled_delay_dtu,
                         (unsigned long long)resp_tx_ts);
+                test_run_info((unsigned char *)str_to_print);
+
+                uint64_t desired_tx_ts = poll_rx_ts + corrected_delay_dtu + TX_ANT_DLY;
+                int64_t epsilon_dtu = (int64_t)resp_tx_ts - (int64_t)desired_tx_ts;
+                double epsilon_ns = epsilon_dtu * (1e9 / (128.0 * 499.2e6));
+
+                sprintf(str_to_print,
+                        "actual_tx_ts=0x%010llX desired_tx_ts=0x%010llX epsilon=%lld dtu (%.3f ns)\r\n",
+                        (unsigned long long)actual_tx_ts,
+                        (unsigned long long)desired_tx_ts,
+                        (long long)epsilon_dtu,
+                        epsilon_ns);
                 test_run_info((unsigned char *)str_to_print);
 
                 sprintf(str_to_print,
@@ -221,15 +246,15 @@ int sending_timestamps(void)
         }
         else
         {
-            sprintf(str_to_print,
-                    "poll_rx_ts=0x%010llX clkoff_raw=%d clkoff_ppm=%.3f corrected_delay_dtu=%llu scheduled_delay_dtu=%u resp_tx_ts=0x%010llX\r\n",
-                    (unsigned long long)poll_rx_ts,
-                    (int)clock_offset_raw,
-                    clock_offset_ppm,
-                    (unsigned long long)corrected_delay_dtu,
-                    (unsigned int)scheduled_delay_dtu,
-                    (unsigned long long)resp_tx_ts);
-            test_run_info((unsigned char *)str_to_print);
+            // sprintf(str_to_print,
+            //         "poll_rx_ts=0x%010llX clkoff_raw=%d clkoff_ppm=%.3f corrected_delay_dtu=%llu scheduled_delay_dtu=%u resp_tx_ts=0x%010llX\r\n",
+            //         (unsigned long long)poll_rx_ts,
+            //         (int)clock_offset_raw,
+            //         clock_offset_ppm,
+            //         (unsigned long long)corrected_delay_dtu,
+            //         (unsigned int)scheduled_delay_dtu,
+            //         (unsigned long long)resp_tx_ts);
+            // test_run_info((unsigned char *)str_to_print);
 
             /* Clear RX error events in the DW IC status register. */
             dwt_writesysstatuslo(SYS_STATUS_ALL_RX_ERR);

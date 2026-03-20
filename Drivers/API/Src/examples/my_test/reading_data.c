@@ -279,18 +279,19 @@ int reading_data(void)
     /* Loop forever, but only send a frame when a button is pressed. */
     while (TRUE)
     {
-        /* Wait for Button 1 (index 0) to be pressed. */
-        while (!bsp_board_button_state_get(0))
-        {
-            /* Small delay to avoid a tight busy loop. */
-            Sleep(10);
-        }
+        // /* Wait for Button 1 (index 0) to be pressed. */
+        // while (!bsp_board_button_state_get(0))
+        // {
+        //     /* Small delay to avoid a tight busy loop. */
+        //     Sleep(10);
+        // }
 
-        /* Simple debounce: wait until the button is released. */
-        while (bsp_board_button_state_get(0))
-        {
-            Sleep(10);
-        }
+        // /* Simple debounce: wait until the button is released. */
+        // while (bsp_board_button_state_get(0))
+        // {
+        //     Sleep(10);
+        // }
+        Sleep(10);
 
         /////////////// sending frame /////////////
 

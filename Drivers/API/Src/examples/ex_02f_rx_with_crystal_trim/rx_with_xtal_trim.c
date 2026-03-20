@@ -54,6 +54,9 @@ static uint8_t uCurrentTrim_val;
 
 extern dwt_config_t config_options;
 
+static char str_to_print[DWT_CIR_LEN_MAX * 2 * 3]; /* Buffer for printing*/
+
+
 /**
  * Application entry point.
  */
@@ -128,6 +131,7 @@ int rx_with_xtal_trim(void)
 
         if (status_reg & DWT_INT_RXFCG_BIT_MASK)
         {
+            test_run_info((unsigned char *)"Frame Received\r\n");
             /* Following code block is the example of reading received frame to the rx_buffer.
              * While this is not necessary to show the clock offset adjustment algorithm, in a real implementation it is obviously important
              * to read the RX frame and validate it is from the expected source node whose crystal we want to track.
@@ -167,6 +171,9 @@ int rx_with_xtal_trim(void)
 
                     /* Configure new Crystal Offset value */
                     dwt_setxtaltrim(uCurrentTrim_val);
+
+                    sprintf(str_to_print,"offset_ppm=%.3f trim=%u\n", xtalOffset_ppm, uCurrentTrim_val);
+                    test_run_info((unsigned char *)str_to_print);
                 }
             }
 

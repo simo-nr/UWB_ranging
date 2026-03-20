@@ -20,7 +20,7 @@
 #include <string.h>
 
 #include "deca_private.h"
-#include "helpers.h"
+// #include "helpers.h"
 
 #if defined(SIMPLE_INITIATOR)
 
@@ -345,7 +345,7 @@ int simple_initiator(void)
     test_run_info((unsigned char *)str_to_print);
 
     int counter = 0;
-    /* Loop forever, but only send a frame when a button is pressed. */
+    /* Loop forever, send frame when a button is pressed. */
     while (TRUE)
     {
         /* Wait for Button 1 (index 0) to be pressed. */
@@ -392,8 +392,13 @@ int simple_initiator(void)
                 ((uint64_t)ts[3] << 24) |
                 ((uint64_t)ts[4] << 32);
 
-        sprintf(str_to_print, "TX_TIME (40b) = 0x%02X%02X%02X%02X%02X (%llu)\r\n",
+        sprintf(str_to_print, "TX_TIME (40b) = 0x%02X%02X%02X%02X%02X (%llu)",
                 ts[4], ts[3], ts[2], ts[1], ts[0], (unsigned long long)tx_time);
+        test_run_info((unsigned char *)str_to_print);
+
+        uint64_t tx_ts = get_tx_timestamp_u64();
+        sprintf(str_to_print, "TX_TS (from API) = %llu\r\n",
+                (unsigned long long)tx_ts);
         test_run_info((unsigned char *)str_to_print);
 
         /* Clear TX frame sent event. */
@@ -429,7 +434,16 @@ int simple_initiator(void)
             // sprintf(str_to_print,"Frame Received len %d\r\n", frame_len);
             // test_run_info((unsigned char *)str_to_print);
 
-            sprintf(str_to_print,"Frame Received %d\r\n", counter);
+            sprintf(str_to_print,"Frame Received %d", counter);
+            test_run_info((unsigned char *)str_to_print);
+
+            uint64_t rx_ts = get_rx_timestamp_u64();
+            // tx rx diff
+            int64_t tx_rx_diff = (int64_t)rx_ts - (int64_t)tx_ts;
+            sprintf(str_to_print, "RX_TS (from API) = %llu",
+                    (unsigned long long)rx_ts);
+            test_run_info((unsigned char *)str_to_print);
+            sprintf(str_to_print, "RX_TS - TX_TS = %lld\r\n", (long long)tx_rx_diff);
             test_run_info((unsigned char *)str_to_print);
 
             read_and_print_sys_status();
@@ -479,7 +493,7 @@ int simple_initiator(void)
             int n_samples = n_samples_ipatov;
             dwt_readcir((uint32_t*)cir_buf, acc_idx, 0, n_samples, modes);
             find_and_print_cir_peak_from_buffer(cir_buf, n_samples, modes);
-            print_cir(cir_buf, n_samples, modes);
+            // print_cir(cir_buf, n_samples, modes);
             
             /* Clear good RX frame event in the DW IC status register. */
             dwt_writesysstatuslo(DWT_INT_RXFCG_BIT_MASK);

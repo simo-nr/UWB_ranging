@@ -215,6 +215,20 @@ int sending_timestamps(void)
             int trim_tx_steps = (int)llround((-scheduling_error_ns) / shift_per_step_ns);
 
             uint8_t trim_temp = clamp_trim((int)trim_cfo + trim_tx_steps);
+
+            uint32_t precise_delay_us = LEVEL3_TDET_US;
+
+            if (trim_tx_steps != 0)
+            {
+                double tdet_calc_us = (fabs(scheduling_error_ns) * 1000.0) / (1.48 * fabs((double)trim_tx_steps));
+
+                if (tdet_calc_us < 0.0)
+                    tdet_calc_us = 0.0;
+                if (tdet_calc_us > 700.0)
+                    tdet_calc_us = 700.0;
+
+                precise_delay_us = (uint32_t)llround(tdet_calc_us);
+            }
             
             // uint32_t t0 = micros();
             dwt_setxtaltrim(trim_temp);
@@ -226,7 +240,7 @@ int sending_timestamps(void)
             // if (elapsed < LEVEL3_TDET_US)
             //     nrf_delay_us(LEVEL3_TDET_US - elapsed);
 
-            nrf_delay_us(LEVEL3_TDET_US); 
+            nrf_delay_us(precise_delay_us); 
 
             dwt_setdelayedtrxtime(resp_tx_time);
             
@@ -238,23 +252,24 @@ int sending_timestamps(void)
                 actual_tx_ts = get_tx_timestamp_u64();
                 dwt_setxtaltrim(trim_cfo);
                 // trimming log
-                sprintf(str_to_print,
-                        "trim_base=%u trim_cfo_steps=%d trim_cfo=%d trim_tx_steps=%d trim_temp=%u Tdet_us=%u clock_offset_raw=%d clock_offset_ppm=%.3f",
-                        (unsigned)trim_base,
-                        (int)trim_cfo_steps,
-                        (int)trim_cfo,
-                        (int)trim_tx_steps,
-                        (unsigned)trim_temp,
-                        (unsigned)LEVEL3_TDET_US,
-                        (int)clock_offset_raw,
-                        clock_offset_ppm);
-                test_run_info((unsigned char *)str_to_print);
+                // sprintf(str_to_print,
+                //         "trim_base=%u trim_cfo_steps=%d trim_cfo=%d trim_tx_steps=%d trim_temp=%u Tdet_us=%u clock_offset_raw=%d clock_offset_ppm=%.3f",
+                //         (unsigned)trim_base,
+                //         (int)trim_cfo_steps,
+                //         (int)trim_cfo,
+                //         (int)trim_tx_steps,
+                //         (unsigned)trim_temp,
+                //         (unsigned)LEVEL3_TDET_US,
+                //         (int)clock_offset_raw,
+                //         clock_offset_ppm);
+                // test_run_info((unsigned char *)str_to_print);
                 
                 sprintf(str_to_print,
-                        "scheduling error=%lld (%0.3f ns), shift_per_step=%0.3f ns",
+                        "scheduling error (epsilon)=%lld dtu (%.3f ns), trim_tx_steps (S)=%d, trim time=%u us",
                         (long long)scheduling_error_dtu,
                         scheduling_error_ns,
-                        shift_per_step_ns);
+                        trim_tx_steps,
+                        (unsigned)precise_delay_us);
                 test_run_info((unsigned char *)str_to_print);
 
                 // calculate transmission time error

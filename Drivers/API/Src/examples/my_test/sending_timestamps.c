@@ -34,6 +34,9 @@ extern void test_run_info(unsigned char *data);
 #define RESP_MSG_DELAY_UUS_IDX (RESP_MSG_RESP_TX_TS_IDX + 5)
 #define RESP_MSG_DELAY_UUS_LEN 4
 #define RESP_TX_DELAY_UUS 1500
+// #define DELTA_I_DTU 1024  // ≈16 ns
+// #define DELTA_I_DTU 8192 // ≈128 ns
+#define DELTA_I_DTU 32768 // ≈512 ns
 
 #define LEVEL3_TEST_ENABLE 1
 #define LEVEL3_TRIM_DELTA -10
@@ -152,6 +155,11 @@ int sending_timestamps(void)
     /* Configure the TX spectrum parameters (power PG delay and PG Count) */
     dwt_configuretxrf(&txconfig_options);
 
+    uint32_t dev_id = dwt_readdevid();
+    sprintf(str_to_print, "Device ID: 0x%08lX", (unsigned long)dev_id); 
+    // 9: 0xDECA0302
+    test_run_info((unsigned char *)str_to_print);
+
     /* Loop forever receiving frames. */
     while (TRUE)
     {
@@ -198,7 +206,7 @@ int sending_timestamps(void)
             uint8_t trim_cfo = clamp_trim((int)trim_base - trim_cfo_steps);
 
             uint64_t resp_delay_dtu = (uint64_t)RESP_TX_DELAY_UUS * UUS_TO_DWT_TIME;
-            uint64_t desired_delay_dtu = resp_delay_dtu;
+            uint64_t desired_delay_dtu = resp_delay_dtu + DELTA_I_DTU;
             
             desired_tx_ts = poll_rx_ts + desired_delay_dtu + TX_ANT_DLY; // add responder specific delay delta_i
 

@@ -64,7 +64,7 @@
  </Watch4>
  <Files>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="0" useTextEdit="1" path="../../Src/examples/ex_05b_ds_twr_resp/ds_twr_responder.c" left="0" top="129" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="92" useTextEdit="1" path="Source/main.c" left="0" top="53" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="92" useTextEdit="1" path="Source/main.c" left="0" top="55" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="0" useTextEdit="1" path="../../Src/examples/ex_05b_ds_twr_resp/ds_twr_responder_sts.c" left="0" top="0" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="0" useTextEdit="1" path="../../Src/examples/ex_05a_ds_twr_init/ds_twr_initiator.c" left="0" top="0" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="380" useTextEdit="1" path="Source/platform/deca_spi.c" left="0" top="356" codecName="Default"/>
@@ -73,11 +73,13 @@
   <SessionOpenFile windowGroup="DockEditLeft" x="9" y="332" useTextEdit="1" path="../../Src/examples/my_test/my_test.c" left="0" top="302" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="407" useTextEdit="1" path="/Applications/SEGGER/SEGGER Embedded Studio 8.24/source/thumb_crt0.s" left="0" top="373" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="0" useTextEdit="1" path="../../Src/config_options.c" left="0" top="0" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="31" y="325" useTextEdit="1" path="../../Src/examples/marco_polo/simple_initiator.c" left="0" top="373" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="5" y="1336" useTextEdit="1" path="../../Shared/dwt_uwb_driver/deca_compat.c" left="0" top="1321" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="22" useTextEdit="1" path="../../Src/examples/marco_polo/simple_initiator.c" left="0" top="10" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="5" y="1336" useTextEdit="1" path="../../Shared/dwt_uwb_driver/deca_compat.c" left="0" top="1297" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="16" y="305" useTextEdit="1" path="../../Shared/dwt_uwb_driver/deca_device_api.h" left="0" top="298" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="77" y="177" useTextEdit="1" path="../../Src/examples/my_test/sending_timestamps.c" left="0" top="165" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="8" y="153" useTextEdit="1" path="../../Src/examples/my_test/reading_data.c" left="0" selected="1" top="136" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="4" y="76" useTextEdit="1" path="../../Src/examples/my_test/sending_timestamps.c" left="0" selected="1" top="61" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="30" y="161" useTextEdit="1" path="../../Src/examples/my_test/reading_data.c" left="0" top="146" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="129" useTextEdit="1" path="../../Src/examples/marco_polo/helpers.c" left="0" top="100" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="185" useTextEdit="1" path="../../Src/examples/my_test/reading_data_timeout.c" left="0" top="169" codecName="Default"/>
  </Files>
  <EMStudioWindow activeProject="dw3000_api" fileDialogDefaultFilter="*.c" autoConnectTarget="J-Link" buildConfiguration="Debug" sessionSettings="" debugSearchFileMap="" fileDialogInitialDirectory="/Users/simonrolly/Documents/uni/master/thesis/DW3_QM33_SDK_1/Drivers/API/Src/examples/my_test" debugSearchPath="" autoConnectCapabilities="3711"/>
 </session>

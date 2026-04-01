@@ -273,79 +273,6 @@ static void find_and_print_cir_peak_from_buffer(uint8_t *buf, int n_samples, dwt
     test_run_info((unsigned char *)str_to_print);
 }
 
-size_t detect_peaks(const float *mag,
-                    size_t len,
-                    float fp_index,
-                    float threshold,
-                    float *peaks_out,
-                    size_t max_peaks) {
-    float *mag_norm;
-    size_t peak_count = 0;
-    size_t i;
-    size_t n;
-    size_t j;
-
-    test_run_info((unsigned char *)"Detecting peaks...\n");
-
-    if (mag == NULL || peaks_out == NULL || len < 3 || max_peaks == 0) {
-        test_run_info((unsigned char *)"Invalid input to detect_peaks\n");
-        return 0;
-    }
-
-    // mag_norm = (float *)malloc(len * sizeof(float));
-    // if (mag_norm == NULL) {
-    //     test_run_info((unsigned char *)"Failed to allocate mag_norm in detect_peaks\n");
-    //     return 0;
-    // }
-    mag_norm = mag_norm_buf;
-
-    if (normalize_array(mag, mag_norm, len) != 0) {
-        test_run_info((unsigned char *)"Failed to normalize array in detect_peaks\n");
-        // free(mag_norm);
-        return 0;
-    }
-
-    i = 0;
-    n = len - 1;
-    while (i < n && peak_count < max_peaks) {
-        if (i > 0 &&
-            mag_norm[i] > threshold &&
-            mag_norm[i] > mag_norm[i - 1] &&
-            mag_norm[i] > mag_norm[i + 1]) {
-            peaks_out[peak_count++] = (float)i;
-            i += SIGNAL_LENGTH;
-        } else {
-            i += 1;
-        }
-    }
-
-    // sprintf(str_to_print, "Detected %zu peaks before fp_index adjustment\r\n", peak_count);
-    // test_run_info((unsigned char *)str_to_print);
-
-    sprintf(str_to_print, "Detected %lu peaks before fp_index adjustment\r\n",
-        (unsigned long)peak_count);
-    test_run_info((unsigned char *)str_to_print);
-
-    for (j = 0; j < peak_count; j++) {
-        if (fabs((double)peaks_out[j] - (double)fp_index) < ((double)SIGNAL_LENGTH / 2.0)) {
-            peaks_out[j] = fp_index;
-        }
-    }
-
-    for (i = 0; i < peak_count; i++) {
-        for (j = i + 1; j < peak_count; j++) {
-            if (peaks_out[j] < peaks_out[i]) {
-                float tmp = peaks_out[i];
-                peaks_out[i] = peaks_out[j];
-                peaks_out[j] = tmp;
-            }
-        }
-    }
-
-    // free(mag_norm);
-    return peak_count;
-}
-
 int calculate_distance(cir_data_t data) {
     uint64_t RX_time = (uint64_t)data.rx_minus_tx;
 
@@ -377,7 +304,7 @@ int calculate_distance(cir_data_t data) {
     fp_index = rotate_cir(data.mag, data.length, start_index, fp_index, rotated_mags);
 
     float peaks[64];
-    size_t peak_count = detect_peaks(rotated_mags, data.length, fp_index, PEAK_THRESHOLD, peaks, 64);
+    size_t peak_count = detect_peaks(rotated_mags, data.length, fp_index, peaks, 64, cir_mag_buf);
 
     test_run_info((unsigned char *)"Detected peaks at indices: [");
     for (size_t i = 0; i < peak_count; i++) {

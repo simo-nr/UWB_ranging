@@ -136,72 +136,86 @@ int detect_cir_start(const float *mag, size_t len)
     return first_peak_index;
 }
 
-// size_t detect_peaks(const float *mag,
-//                     size_t len,
-//                     float fp_index,
-//                     float threshold,
-//                     float *peaks_out,
-//                     size_t max_peaks) {
-//     float *mag_norm;
-//     size_t peak_count = 0;
-//     size_t i;
-//     size_t n;
-//     size_t j;
+size_t detect_peaks(const float *mag,
+                    size_t len,
+                    float fp_index,
+                    float *peaks_out,
+                    size_t max_peaks,
+                    float mag_norm_buf[]) {
+    float *mag_norm;
+    size_t peak_count = 0;
+    size_t i;
+    size_t n;
+    size_t j;
 
-//     if (mag == NULL || peaks_out == NULL || len < 3 || max_peaks == 0) {
-//         return 0;
-//     }
+    test_run_info((unsigned char *)"Detecting peaks...\n");
 
-//     mag_norm = (float *)malloc(len * sizeof(float));
-//     if (mag_norm == NULL) {
-//         return 0;
-//     }
+    if (mag == NULL || peaks_out == NULL || len < 3 || max_peaks == 0) {
+        test_run_info((unsigned char *)"Invalid input to detect_peaks\n");
+        return 0;
+    }
 
-//     if (normalize_array(mag, mag_norm, len) != 0) {
-//         free(mag_norm);
-//         return 0;
-//     }
+    // mag_norm = (float *)malloc(len * sizeof(float));
+    // if (mag_norm == NULL) {
+    //     test_run_info((unsigned char *)"Failed to allocate mag_norm in detect_peaks\n");
+    //     return 0;
+    // }
+    mag_norm = mag_norm_buf;
 
-//     i = 0;
-//     n = len - 1;
-//     while (i < n && peak_count < max_peaks) {
-//         if (i > 0 &&
-//             mag_norm[i] > threshold &&
-//             mag_norm[i] > mag_norm[i - 1] &&
-//             mag_norm[i] > mag_norm[i + 1]) {
-//             peaks_out[peak_count++] = (float)i;
-//             i += SIGNAL_LENGTH;
-//         } else {
-//             i += 1;
-//         }
-//     }
+    if (normalize_array(mag, mag_norm, len) != 0) {
+        test_run_info((unsigned char *)"Failed to normalize array in detect_peaks\n");
+        // free(mag_norm);
+        return 0;
+    }
 
-//     // sprintf(str_to_print, "Detected %zu peaks before fp_index adjustment\r\n", peak_count);
-//     // test_run_info((unsigned char *)str_to_print);
+    i = 0;
+    n = len - 1;
+    while (i < n && peak_count < max_peaks) {
+        if (i > 0 &&
+            mag_norm[i] > PEAK_THRESHOLD &&
+            mag_norm[i] > mag_norm[i - 1] &&
+            mag_norm[i] > mag_norm[i + 1]) {
+            peaks_out[peak_count++] = (float)i;
+            i += SIGNAL_LENGTH;
+        } else {
+            i += 1;
+        }
+    }
 
-//     sprintf(str_to_print, "Detected %lu peaks before fp_index adjustment\r\n",
-//         (unsigned long)peak_count);
-//     test_run_info((unsigned char *)str_to_print);
+    // print detected peaks
+    test_run_info((unsigned char *)"Detected peaks at indices: [");
+    for (j = 0; j < peak_count; j++) {
+        sprintf(str_to_print, "%f", peaks_out[j]);
+        test_run_info((unsigned char *)str_to_print);
+        if (j + 1 < peak_count) {
+            test_run_info((unsigned char *)", ");
+        }
+    }
+    test_run_info((unsigned char *)"]\n\n");
 
-//     for (j = 0; j < peak_count; j++) {
-//         if (fabs((double)peaks_out[j] - (double)fp_index) < ((double)SIGNAL_LENGTH / 2.0)) {
-//             peaks_out[j] = fp_index;
-//         }
-//     }
+    // sprintf(str_to_print, "Detected %lu peaks before fp_index adjustment\r\n",
+    //     (unsigned long)peak_count);
+    // test_run_info((unsigned char *)str_to_print);
 
-//     for (i = 0; i < peak_count; i++) {
-//         for (j = i + 1; j < peak_count; j++) {
-//             if (peaks_out[j] < peaks_out[i]) {
-//                 float tmp = peaks_out[i];
-//                 peaks_out[i] = peaks_out[j];
-//                 peaks_out[j] = tmp;
-//             }
-//         }
-//     }
+    for (j = 0; j < peak_count; j++) {
+        if (fabs((double)peaks_out[j] - (double)fp_index) < ((double)SIGNAL_LENGTH / 2.0)) {
+            peaks_out[j] = fp_index;
+        }
+    }
 
-//     free(mag_norm);
-//     return peak_count;
-// }
+    for (i = 0; i < peak_count; i++) {
+        for (j = i + 1; j < peak_count; j++) {
+            if (peaks_out[j] < peaks_out[i]) {
+                float tmp = peaks_out[i];
+                peaks_out[i] = peaks_out[j];
+                peaks_out[j] = tmp;
+            }
+        }
+    }
+
+    // free(mag_norm);
+    return peak_count;
+}
 
 float rotate_cir(const float *mag, size_t len, int start_index, float fp_index, float *rotated_out)
 {
@@ -261,10 +275,10 @@ tof_result_t tof_and_distance_from_absolute_rx(uint64_t total_time, uint32_t res
     tau_s = tau_dtu * DTU_SECONDS;
     d_m = tau_s * C_M_PER_S;
 
-    printf("Responder %u: delta_i (DTU) = %llu, t_resp_i (DTU) = %llu\n",
-           responder_id,
-           (unsigned long long)delta_i,
-           (unsigned long long)t_resp_i);
+    // printf("Responder %u: delta_i (DTU) = %llu, t_resp_i (DTU) = %llu\n",
+    //        responder_id,
+    //        (unsigned long long)delta_i,
+    //        (unsigned long long)t_resp_i);
 
     sprintf(str_to_print, "Responder %u: delta_i (DTU) = %llu, t_resp_i (DTU) = %llu\r\n",
             responder_id,
@@ -272,11 +286,11 @@ tof_result_t tof_and_distance_from_absolute_rx(uint64_t total_time, uint32_t res
             (unsigned long long)t_resp_i);
     test_run_info((unsigned char *)str_to_print);
     
-    printf("Total time (DTU) = %llu, ToF (DTU) = %.2f, ToF (ns) = %.6f, Distance (m) = %.2f\n",
-           (unsigned long long)total_time,
-           tau_dtu,
-           tau_s * 1e9,
-           d_m);
+    // printf("Total time (DTU) = %llu, ToF (DTU) = %.2f, ToF (ns) = %.6f, Distance (m) = %.2f\n",
+    //        (unsigned long long)total_time,
+    //        tau_dtu,
+    //        tau_s * 1e9,
+    //        d_m);
 
     sprintf(str_to_print, "Total time (DTU) = %llu, ToF (DTU) = %.2f, ToF (ns) = %.6f, Distance (m) = %.2f\r\n",
             (unsigned long long)total_time,

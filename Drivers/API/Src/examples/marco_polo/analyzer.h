@@ -44,9 +44,9 @@ float rotate_cir(const float *mag, size_t len, int start_index, float fp_index, 
 size_t detect_peaks(const float *mag,
                     size_t len,
                     float fp_index,
-                    float threshold,
                     float *peaks_out,
-                    size_t max_peaks);
+                    size_t max_peaks,
+                    float *mag_buf);
                     
 size_t get_relative_time_ticks(uint64_t rx_time,
                                float fp_index,
@@ -58,5 +58,5 @@ size_t get_relative_time_ticks(uint64_t rx_time,
 tof_result_t tof_and_distance_from_absolute_rx(uint64_t total_time, uint32_t responder_id);
 
 
-int normalize_array(const float *mag, float *out, size_t len);
+// int normalize_array(const float *mag, float *out, size_t len);
 

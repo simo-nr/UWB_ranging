@@ -21,6 +21,8 @@
 
 #include "deca_private.h"
 // #include "helpers.h"
+#include "analyzer.h"
+#include "load_data.h"
 
 #if defined(SIMPLE_INITIATOR)
 
@@ -36,12 +38,18 @@ static uint8_t tx_msg[] = { 0xC5, 0, 'D', 'E', 'C', 'A', 'W', 'A', 'V', 'E' };
 #define FRAME_LENGTH (sizeof(tx_msg) + FCS_LEN) // The real length that is going to be transmitted
 #define TX_DELAY_MS 3000
 
+#define RX_RESP_TO_UUS 2000
+
 /* Buffer to store received frame. See NOTE 1 below. */
 static uint8_t rx_buffer[FRAME_LEN_MAX];
 
 static uint8_t cir_buf[DWT_CIR_LEN_MAX * 2 * 3];  /* A complex sample takes up to 2 32-bit words */
 
 static char str_to_print[DWT_CIR_LEN_MAX * 2 * 3]; /* Buffer for printing*/
+
+static float rotated_mags_buf[DWT_CIR_LEN_MAX];
+static float mag_norm_buf[DWT_CIR_LEN_MAX];
+static float cir_mag_buf[DWT_CIR_LEN_MAX];
 
 extern dwt_config_t config_options;
 extern dwt_txconfig_t txconfig_options;
@@ -265,6 +273,137 @@ static void find_and_print_cir_peak_from_buffer(uint8_t *buf, int n_samples, dwt
     test_run_info((unsigned char *)str_to_print);
 }
 
+size_t detect_peaks(const float *mag,
+                    size_t len,
+                    float fp_index,
+                    float threshold,
+                    float *peaks_out,
+                    size_t max_peaks) {
+    float *mag_norm;
+    size_t peak_count = 0;
+    size_t i;
+    size_t n;
+    size_t j;
+
+    test_run_info((unsigned char *)"Detecting peaks...\n");
+
+    if (mag == NULL || peaks_out == NULL || len < 3 || max_peaks == 0) {
+        test_run_info((unsigned char *)"Invalid input to detect_peaks\n");
+        return 0;
+    }
+
+    // mag_norm = (float *)malloc(len * sizeof(float));
+    // if (mag_norm == NULL) {
+    //     test_run_info((unsigned char *)"Failed to allocate mag_norm in detect_peaks\n");
+    //     return 0;
+    // }
+    mag_norm = mag_norm_buf;
+
+    if (normalize_array(mag, mag_norm, len) != 0) {
+        test_run_info((unsigned char *)"Failed to normalize array in detect_peaks\n");
+        // free(mag_norm);
+        return 0;
+    }
+
+    i = 0;
+    n = len - 1;
+    while (i < n && peak_count < max_peaks) {
+        if (i > 0 &&
+            mag_norm[i] > threshold &&
+            mag_norm[i] > mag_norm[i - 1] &&
+            mag_norm[i] > mag_norm[i + 1]) {
+            peaks_out[peak_count++] = (float)i;
+            i += SIGNAL_LENGTH;
+        } else {
+            i += 1;
+        }
+    }
+
+    // sprintf(str_to_print, "Detected %zu peaks before fp_index adjustment\r\n", peak_count);
+    // test_run_info((unsigned char *)str_to_print);
+
+    sprintf(str_to_print, "Detected %lu peaks before fp_index adjustment\r\n",
+        (unsigned long)peak_count);
+    test_run_info((unsigned char *)str_to_print);
+
+    for (j = 0; j < peak_count; j++) {
+        if (fabs((double)peaks_out[j] - (double)fp_index) < ((double)SIGNAL_LENGTH / 2.0)) {
+            peaks_out[j] = fp_index;
+        }
+    }
+
+    for (i = 0; i < peak_count; i++) {
+        for (j = i + 1; j < peak_count; j++) {
+            if (peaks_out[j] < peaks_out[i]) {
+                float tmp = peaks_out[i];
+                peaks_out[i] = peaks_out[j];
+                peaks_out[j] = tmp;
+            }
+        }
+    }
+
+    // free(mag_norm);
+    return peak_count;
+}
+
+int calculate_distance(cir_data_t data) {
+    uint64_t RX_time = (uint64_t)data.rx_minus_tx;
+
+    int start_index = detect_cir_start(data.mag, data.length);
+    if (start_index == -1) {
+        test_run_info((unsigned char *)"No CIR start detected.\n");
+        free_cir_data(&data);
+        return 0;
+    }
+
+    test_run_info((unsigned char *)"First path index from header: ");
+    sprintf(str_to_print, "%f\n", data.fp_index_samples);
+    test_run_info((unsigned char *)str_to_print);
+    /* Temporarily use the peak index from the header as the CIR start */
+    start_index = (int)data.fp_index_samples;
+    test_run_info((unsigned char *)"CIR start detected at index: ");
+    sprintf(str_to_print, "%d\n", start_index);
+    test_run_info((unsigned char *)str_to_print);
+
+    // float *rotated_mags = (float *)malloc(data.length * sizeof(float));
+    // if (rotated_mags == NULL) {
+    //     test_run_info((unsigned char *)"Failed to allocate rotated_mags\n");
+    //     free_cir_data(&data);
+    //     return 1;
+    // }
+    float *rotated_mags = rotated_mags_buf;
+
+    float fp_index = (float)data.fp_index_samples;
+    fp_index = rotate_cir(data.mag, data.length, start_index, fp_index, rotated_mags);
+
+    float peaks[64];
+    size_t peak_count = detect_peaks(rotated_mags, data.length, fp_index, PEAK_THRESHOLD, peaks, 64);
+
+    test_run_info((unsigned char *)"Detected peaks at indices: [");
+    for (size_t i = 0; i < peak_count; i++) {
+        sprintf(str_to_print, "%f", peaks[i]);
+        test_run_info((unsigned char *)str_to_print);
+        if (i + 1 < peak_count) {
+            test_run_info((unsigned char *)", ");
+        }
+    }
+    test_run_info((unsigned char *)"]\n\n");
+
+    uint64_t times[64];
+    size_t time_count = get_relative_time_ticks(RX_time, fp_index, peaks, peak_count, times, 64);
+
+    for (size_t i = 0; i < time_count; i++) {
+        tof_result_t result = tof_and_distance_from_absolute_rx(times[i], (uint32_t)i);
+        (void)result;
+        sprintf(str_to_print, "Peak %zu: tau_dtu = %f, distance_m = %f\n", i, result.tau_dtu, result.distance_m);
+        test_run_info((unsigned char *)str_to_print);
+    }
+
+    // free(rotated_mags);
+    free_cir_data(&data);
+    return 0;
+}
+
 /**
  * Application entry point.
  */
@@ -323,6 +462,8 @@ int simple_initiator(void)
     else {
         n_samples_ipatov = DWT_CIR_LEN_IP_PRF64;
     }
+
+    dwt_setrxtimeout(RX_RESP_TO_UUS);
 
     test_run_info((unsigned char *)"DW3000 initialized and configured. Starting main loop.\r\n");
 
@@ -421,7 +562,8 @@ int simple_initiator(void)
         /* Poll until a frame is properly received or an error/timeout occurs. See NOTE 3 below.
          * STATUS register is 5 bytes long but, as the event we are looking at is in the first byte of the register, we can use this simplest API
          * function to access it. */
-        waitforsysstatus(&status_reg, NULL, (DWT_INT_RXFCG_BIT_MASK | SYS_STATUS_ALL_RX_ERR), 0);
+        // waitforsysstatus(&status_reg, NULL, (DWT_INT_RXFCG_BIT_MASK | SYS_STATUS_ALL_RX_ERR), 0);
+        waitforsysstatus(&status_reg, NULL, (DWT_INT_RXFCG_BIT_MASK | SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR), 0);
 
         if (status_reg & DWT_INT_RXFCG_BIT_MASK)
         {
@@ -446,20 +588,20 @@ int simple_initiator(void)
             sprintf(str_to_print, "RX_TS - TX_TS = %lld\r\n", (long long)tx_rx_diff);
             test_run_info((unsigned char *)str_to_print);
 
-            read_and_print_sys_status();
+            // read_and_print_sys_status();
 
-            if (wait_for_ci_done_ms(20))
-            {
-                test_run_info((unsigned char *)"CIADONE observed before reading CIA diagnostics\r\n");
-            }
-            else
-            {
-                test_run_info((unsigned char *)"CIADONE NOT observed within 20 ms\r\n");
-            }
+            // if (wait_for_ci_done_ms(20))
+            // {
+            //     test_run_info((unsigned char *)"CIADONE observed before reading CIA diagnostics\r\n");
+            // }
+            // else
+            // {
+            //     test_run_info((unsigned char *)"CIADONE NOT observed within 20 ms\r\n");
+            // }
 
-            read_and_print_sys_status();
-            read_and_print_rxtime();
-            read_and_print_cia_diags();
+            // read_and_print_sys_status();
+            // read_and_print_rxtime();
+            // read_and_print_cia_diags();
 
             test_run_info((unsigned char *)"########## READING WITH BUILD IN API CALL ###########\r\n");
 
@@ -493,7 +635,21 @@ int simple_initiator(void)
             int n_samples = n_samples_ipatov;
             dwt_readcir((uint32_t*)cir_buf, acc_idx, 0, n_samples, modes);
             find_and_print_cir_peak_from_buffer(cir_buf, n_samples, modes);
-            // print_cir(cir_buf, n_samples, modes);
+            print_cir(cir_buf, n_samples, modes);
+
+            // make cir_data_t struct and calculate distance
+            cir_data_t cir_data;
+            // cir_data.mag = (float*)malloc(n_samples * sizeof(float));
+            cir_data.mag = cir_mag_buf;
+            cir_data.length = n_samples;
+            // convert Q10.6 diag.FpIndex to float
+            cir_data.fp_index_samples = (float)diag.FpIndex / 64.0f;
+            cir_data.rx_minus_tx = (int)(rx_ts - tx_ts);
+
+            for (int i = 0; i < n_samples; i++) {
+                cir_data.mag[i] = (float)cir_mag2_from_buf(&cir_buf[i * ((modes == DWT_CIR_READ_FULL) ? 6 : 4)], modes);
+            }
+            calculate_distance(cir_data);
             
             /* Clear good RX frame event in the DW IC status register. */
             dwt_writesysstatuslo(DWT_INT_RXFCG_BIT_MASK);

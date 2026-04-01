@@ -35,7 +35,7 @@ extern "C"
 //#define TEST_RX_DIAG
 //#define TEST_RX_SNIFF
 //#define TEST_DOUBLE_BUFFER_RX
-//#define TEST_RX_TRIM
+// #define TEST_RX_TRIM
 //#define TEST_SIMPLE_RX_PDOA
 // #define TEST_SIMPLE_RX_CIR
 
@@ -102,10 +102,10 @@ extern "C"
 // #define MY_TEST_2
 // #define TX_AND_READ_CIR
 
-// #define SIMPLE_INITIATOR
+#define SIMPLE_INITIATOR
 // #define SIMPLE_RESPONDER
 
-#define READING_DATA
+// #define READING_DATA
 // #define SENDING_TIMESTAMPS
 
 #ifdef __cplusplus

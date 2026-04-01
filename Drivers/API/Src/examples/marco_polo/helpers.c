@@ -113,16 +113,16 @@ void waitforsysstatus_timeout(uint32_t *lo_result,
  * Return: Relative time in timestamp ticks for the given index
  *         with respect to the detected peak time.
  */
-uint64_t get_relative_time_ticks(int index, int detected_peak_index, uint64_t detected_peak_time)
-{
-    // RX timestamp resolution: 1/(128*499.2x10^6) seconds per timestamp ticks 
-    // CIR sample resolution: 1/(499.2x10^6) seconds per CIR sample
-    // => each CIR sample corresponds to 128 timestamp ticks
-    static const int ticks_per_cir_sample = 128;
-    int diff = index - detected_peak_index;
-    uint64_t relative_time = detected_peak_time + diff * ticks_per_cir_sample;
-    return relative_time;
-}
+// uint64_t get_relative_time_ticks(int index, int detected_peak_index, uint64_t detected_peak_time)
+// {
+//     // RX timestamp resolution: 1/(128*499.2x10^6) seconds per timestamp ticks 
+//     // CIR sample resolution: 1/(499.2x10^6) seconds per CIR sample
+//     // => each CIR sample corresponds to 128 timestamp ticks
+//     static const int ticks_per_cir_sample = 128;
+//     int diff = index - detected_peak_index;
+//     uint64_t relative_time = detected_peak_time + diff * ticks_per_cir_sample;
+//     return relative_time;
+// }
 
 int waitforsysstatus_with_timeout(uint32_t mask, uint32_t timeout_count) {
     uint32_t status;

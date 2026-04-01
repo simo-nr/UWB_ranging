@@ -34,9 +34,12 @@ extern void test_run_info(unsigned char *data);
 #define RESP_MSG_DELAY_UUS_IDX (RESP_MSG_RESP_TX_TS_IDX + 5)
 #define RESP_MSG_DELAY_UUS_LEN 4
 #define RESP_TX_DELAY_UUS 1500
+
+// #define DELTA_I_DTU 0
 // #define DELTA_I_DTU 1024  // ≈16 ns
 // #define DELTA_I_DTU 8192 // ≈128 ns
-#define DELTA_I_DTU 32768 // ≈512 ns
+// #define DELTA_I_DTU 32768 // ≈512 ns
+#define DEVICE_INDEX 0 // unique value per device to deterime delay
 
 #define LEVEL3_TEST_ENABLE 1
 #define LEVEL3_TRIM_DELTA -10
@@ -66,23 +69,6 @@ static uint8_t clamp_trim(int val)
     if (val > 63) return 63;
     return (uint8_t)val;
 }
-
-// static void write_timestamp_to_msg(uint8_t *buffer, uint64_t ts)
-// {
-//     buffer[0] = (uint8_t)ts;
-//     buffer[1] = (uint8_t)(ts >> 8);
-//     buffer[2] = (uint8_t)(ts >> 16);
-//     buffer[3] = (uint8_t)(ts >> 24);
-//     buffer[4] = (uint8_t)(ts >> 32);
-// }
-
-// static void write_u32_to_msg(uint8_t *buffer, uint32_t value)
-// {
-//     buffer[0] = (uint8_t)value;
-//     buffer[1] = (uint8_t)(value >> 8);
-//     buffer[2] = (uint8_t)(value >> 16);
-//     buffer[3] = (uint8_t)(value >> 24);
-// }
 
 /**
  * Application entry point.
@@ -206,7 +192,7 @@ int sending_timestamps(void)
             uint8_t trim_cfo = clamp_trim((int)trim_base - trim_cfo_steps);
 
             uint64_t resp_delay_dtu = (uint64_t)RESP_TX_DELAY_UUS * UUS_TO_DWT_TIME;
-            uint64_t desired_delay_dtu = resp_delay_dtu + DELTA_I_DTU;
+            uint64_t desired_delay_dtu = resp_delay_dtu + DELTA_I_DTU * DEVICE_INDEX;
             
             desired_tx_ts = poll_rx_ts + desired_delay_dtu + TX_ANT_DLY; // add responder specific delay delta_i
 
@@ -217,9 +203,6 @@ int sending_timestamps(void)
             double scheduling_error_ns = scheduling_error_dtu * (1e9 / (128.0 * 499.2e6));
 
             double shift_per_step_ns = 1.48 * ((double)LEVEL3_TDET_US) / 1000.0;
-            // double intermediate_res_1 = (-scheduling_error_ns) / shift_per_step_ns;
-            // double intermediate_res_2 = llround(intermediate_res_1);
-            // int intermediate_res_3 = (int)intermediate_res_2;
             int trim_tx_steps = (int)llround((-scheduling_error_ns) / shift_per_step_ns);
 
             uint8_t trim_temp = clamp_trim((int)trim_cfo + trim_tx_steps);
@@ -259,18 +242,6 @@ int sending_timestamps(void)
                 
                 actual_tx_ts = get_tx_timestamp_u64();
                 dwt_setxtaltrim(trim_cfo);
-                // trimming log
-                // sprintf(str_to_print,
-                //         "trim_base=%u trim_cfo_steps=%d trim_cfo=%d trim_tx_steps=%d trim_temp=%u Tdet_us=%u clock_offset_raw=%d clock_offset_ppm=%.3f",
-                //         (unsigned)trim_base,
-                //         (int)trim_cfo_steps,
-                //         (int)trim_cfo,
-                //         (int)trim_tx_steps,
-                //         (unsigned)trim_temp,
-                //         (unsigned)LEVEL3_TDET_US,
-                //         (int)clock_offset_raw,
-                //         clock_offset_ppm);
-                // test_run_info((unsigned char *)str_to_print);
                 
                 sprintf(str_to_print,
                         "scheduling error (epsilon)=%lld dtu (%.3f ns), trim_tx_steps (S)=%d, trim time=%u us",
@@ -289,58 +260,6 @@ int sending_timestamps(void)
                         measured_error_ns);
                 test_run_info((unsigned char *)str_to_print);
                 
-                // // print clock offset and scheduling error info
-                // sprintf(str_to_print,
-                //         "clock_offset_raw=%d clock_offset_ppm=%.3f\r\n",
-                //         (int)clock_offset_raw,
-                //         clock_offset_ppm);
-                // test_run_info((unsigned char *)str_to_print);
-
-
-                // sprintf(str_to_print,
-                //         "trim_base=%u trim_temp=%u trim_delta=%d Tdet_us=%u carrier_integrator=%ld clock_offset_raw=%d clock_offset_ppm=%.3f\r\n",
-                //         (unsigned)trim_base,
-                //         (unsigned)trim_temp,
-                //         (int)LEVEL3_TRIM_DELTA,
-                //         (unsigned)LEVEL3_TDET_US,
-                //         (long)carrier_integrator,
-                //         (int)clock_offset_raw,
-                //         clock_offset_ppm);
-                // test_run_info((unsigned char *)str_to_print);
-
-                // sprintf(str_to_print,
-                //         "poll_rx_ts=0x%010llX clkoff_raw=%d clkoff_ppm=%.3f corrected_delay_dtu=%llu scheduled_delay_dtu=%u resp_tx_ts=0x%010llX\r\n",
-                //         (unsigned long long)poll_rx_ts,
-                //         (int)clock_offset_raw,
-                //         clock_offset_ppm,
-                //         (unsigned long long)corrected_delay_dtu,
-                //         (unsigned int)scheduled_delay_dtu,
-                //         (unsigned long long)resp_tx_ts);
-                // test_run_info((unsigned char *)str_to_print);
-
-                // desired_tx_ts = poll_rx_ts + corrected_delay_dtu + TX_ANT_DLY;
-                // epsilon_dtu = (int64_t)actual_tx_ts - (int64_t)desired_tx_ts;
-                // epsilon_ns = epsilon_dtu * (1e9 / (128.0 * 499.2e6));
-
-                // sprintf(str_to_print,
-                //         "actual_tx_ts=0x%010llX desired_tx_ts=0x%010llX epsilon=%lld dtu (%.3f ns) scheduled_minus_corrected=%ld dtu\r\n",
-                //         (unsigned long long)actual_tx_ts,
-                //         (unsigned long long)desired_tx_ts,
-                //         (long long)epsilon_dtu,
-                //         epsilon_ns,
-                //         (long)((int64_t)scheduled_delay_dtu - (int64_t)corrected_delay_dtu));
-                // test_run_info((unsigned char *)str_to_print);
-
-                // sprintf(str_to_print,
-                //         "epsilon=%lld dtu (%.3f ns)\r\n",
-                //         (long long)epsilon_dtu,
-                //         epsilon_ns);
-                // test_run_info((unsigned char *)str_to_print);
-
-                // sprintf(str_to_print,
-                //         "RESPONSE Frame Sent actual_tx_ts=0x%010llX\r\n",
-                //         (unsigned long long)actual_tx_ts);
-                // test_run_info((unsigned char *)str_to_print);
             }
             else
             {
@@ -349,16 +268,6 @@ int sending_timestamps(void)
         }
         else
         {
-            // sprintf(str_to_print,
-            //         "poll_rx_ts=0x%010llX clkoff_raw=%d clkoff_ppm=%.3f corrected_delay_dtu=%llu scheduled_delay_dtu=%u resp_tx_ts=0x%010llX\r\n",
-            //         (unsigned long long)poll_rx_ts,
-            //         (int)clock_offset_raw,
-            //         clock_offset_ppm,
-            //         (unsigned long long)corrected_delay_dtu,
-            //         (unsigned int)scheduled_delay_dtu,
-            //         (unsigned long long)resp_tx_ts);
-            // test_run_info((unsigned char *)str_to_print);
-
             /* Clear RX error events in the DW IC status register. */
             dwt_writesysstatuslo(SYS_STATUS_ALL_RX_ERR);
         }

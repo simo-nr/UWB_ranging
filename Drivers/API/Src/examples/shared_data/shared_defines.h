@@ -58,6 +58,13 @@ extern "C"
         AES_RES_ERROR_IGNORE_FRAME = -4
     } aes_results_e;
 
+/* ------------------ defines for concurrent ranging ------------------ */
+
+// #define DELTA_I_DTU 0
+// #define DELTA_I_DTU 1024  // ≈16 ns
+#define DELTA_I_DTU 8192 // ≈128 ns
+// #define DELTA_I_DTU 32768 // ≈512 ns
+
 #ifdef __cplusplus
 }
 #endif

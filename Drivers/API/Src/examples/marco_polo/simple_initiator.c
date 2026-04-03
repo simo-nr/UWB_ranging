@@ -250,36 +250,74 @@ static uint32_t cir_mag2_from_buf(const uint8_t *ptr, dwt_cir_read_mode_e mode)
     return (uint32_t)((int64_t)re * (int64_t)re + (int64_t)im * (int64_t)im);
 }
 
+static float cir_mag_from_buf(const uint8_t *ptr, dwt_cir_read_mode_e mode)
+{
+    int32_t re = 0;
+    int32_t im = 0;
+    float re_f;
+    float im_f;
+
+    if (mode == DWT_CIR_READ_FULL)
+    {
+        uint8_t lo_re = ptr[0];
+        uint8_t mid_re = ptr[1];
+        uint8_t hi_re = ptr[2];
+        uint8_t lo_im = ptr[3];
+        uint8_t mid_im = ptr[4];
+        uint8_t hi_im = ptr[5];
+        uint8_t sign_re = ((hi_re & 0x80U) == 0x80U) ? 0xFFU : 0U;
+        uint8_t sign_im = ((hi_im & 0x80U) == 0x80U) ? 0xFFU : 0U;
+
+        re = (int32_t)(((uint32_t)sign_re << 24) | ((uint32_t)hi_re << 16) | ((uint32_t)mid_re << 8) | lo_re);
+        im = (int32_t)(((uint32_t)sign_im << 24) | ((uint32_t)hi_im << 16) | ((uint32_t)mid_im << 8) | lo_im);
+    }
+    else
+    {
+        uint8_t lo_re = ptr[0];
+        uint8_t hi_re = ptr[1];
+        uint8_t lo_im = ptr[2];
+        uint8_t hi_im = ptr[3];
+
+        re = (int16_t)(((uint16_t)hi_re << 8) | lo_re);
+        im = (int16_t)(((uint16_t)hi_im << 8) | lo_im);
+    }
+
+    re_f = (float)re;
+    im_f = (float)im;
+    return sqrtf(re_f * re_f + im_f * im_f);
+}
+
 static void find_and_print_cir_peak_from_buffer(uint8_t *buf, int n_samples, dwt_cir_read_mode_e mode)
 {
     int bytes_per_sample = (mode == DWT_CIR_READ_FULL) ? 6 : 4;
-    uint32_t best_mag2 = 0;
+    // uint32_t best_mag2 = 0;
+    float best_mag = 0.0f;
     int best_idx = 0;
 
     for (int i = 0; i < n_samples; i++)
     {
-        uint32_t mag2 = cir_mag2_from_buf(&buf[i * bytes_per_sample], mode);
-        if ((i == 0) || (mag2 > best_mag2))
+        float mag = cir_mag_from_buf(&buf[i * bytes_per_sample], mode);
+        if ((i == 0) || (mag > best_mag))
         {
-            best_mag2 = mag2;
+            best_mag = mag;
             best_idx = i;
         }
     }
 
     sprintf(str_to_print,
-            "CIR buffer max magnitude^2 at index %d = %lu\r\n",
+            "CIR buffer max magnitude at index %d = %f\r\n",
             best_idx,
-            (unsigned long)best_mag2);
+            best_mag);
     test_run_info((unsigned char *)str_to_print);
 }
 
 int calculate_distance(cir_data_t data) {
     uint64_t RX_time = (uint64_t)data.rx_minus_tx;
 
-    int start_index = detect_cir_start(data.mag, data.length);
+    int start_index = detect_cir_start(data.mag, data.length, mag_norm_buf);
     if (start_index == -1) {
         test_run_info((unsigned char *)"No CIR start detected.\n");
-        free_cir_data(&data);
+        // free_cir_data(&data);
         return 0;
     }
 
@@ -304,7 +342,8 @@ int calculate_distance(cir_data_t data) {
     fp_index = rotate_cir(data.mag, data.length, start_index, fp_index, rotated_mags);
 
     float peaks[64];
-    size_t peak_count = detect_peaks(rotated_mags, data.length, fp_index, peaks, 64, cir_mag_buf);
+    // size_t peak_count = detect_peaks(rotated_mags, data.length, fp_index, peaks, 64, cir_mag_buf);
+    size_t peak_count = detect_peaks(rotated_mags, data.length, fp_index, peaks, 64, mag_norm_buf);
 
     test_run_info((unsigned char *)"Detected peaks at indices: [");
     for (size_t i = 0; i < peak_count; i++) {
@@ -327,7 +366,7 @@ int calculate_distance(cir_data_t data) {
     }
 
     // free(rotated_mags);
-    free_cir_data(&data);
+    // free_cir_data(&data);
     return 0;
 }
 
@@ -460,14 +499,14 @@ int simple_initiator(void)
                 ((uint64_t)ts[3] << 24) |
                 ((uint64_t)ts[4] << 32);
 
-        sprintf(str_to_print, "TX_TIME (40b) = 0x%02X%02X%02X%02X%02X (%llu)",
-                ts[4], ts[3], ts[2], ts[1], ts[0], (unsigned long long)tx_time);
-        test_run_info((unsigned char *)str_to_print);
+        // sprintf(str_to_print, "TX_TIME (40b) = 0x%02X%02X%02X%02X%02X (%llu)",
+        //         ts[4], ts[3], ts[2], ts[1], ts[0], (unsigned long long)tx_time);
+        // test_run_info((unsigned char *)str_to_print);
 
         uint64_t tx_ts = get_tx_timestamp_u64();
-        sprintf(str_to_print, "TX_TS (from API) = %llu\r\n",
-                (unsigned long long)tx_ts);
-        test_run_info((unsigned char *)str_to_print);
+        // sprintf(str_to_print, "TX_TS (from API) = %llu\r\n",
+        //         (unsigned long long)tx_ts);
+        // test_run_info((unsigned char *)str_to_print);
 
         /* Clear TX frame sent event. */
         dwt_writesysstatuslo(DWT_INT_TXFRS_BIT_MASK);
@@ -503,17 +542,17 @@ int simple_initiator(void)
             // sprintf(str_to_print,"Frame Received len %d\r\n", frame_len);
             // test_run_info((unsigned char *)str_to_print);
 
-            sprintf(str_to_print,"Frame Received %d", counter);
-            test_run_info((unsigned char *)str_to_print);
+            // sprintf(str_to_print,"Frame Received %d", counter);
+            // test_run_info((unsigned char *)str_to_print);
 
             uint64_t rx_ts = get_rx_timestamp_u64();
             // tx rx diff
             int64_t tx_rx_diff = (int64_t)rx_ts - (int64_t)tx_ts;
-            sprintf(str_to_print, "RX_TS (from API) = %llu",
-                    (unsigned long long)rx_ts);
-            test_run_info((unsigned char *)str_to_print);
-            sprintf(str_to_print, "RX_TS - TX_TS = %lld\r\n", (long long)tx_rx_diff);
-            test_run_info((unsigned char *)str_to_print);
+            // sprintf(str_to_print, "RX_TS (from API) = %llu",
+            //         (unsigned long long)rx_ts);
+            // test_run_info((unsigned char *)str_to_print);
+            // sprintf(str_to_print, "RX_TS - TX_TS = %lld\r\n", (long long)tx_rx_diff);
+            // test_run_info((unsigned char *)str_to_print);
 
             // read_and_print_sys_status();
 
@@ -530,7 +569,7 @@ int simple_initiator(void)
             // read_and_print_rxtime();
             // read_and_print_cia_diags();
 
-            test_run_info((unsigned char *)"########## READING WITH BUILD IN API CALL ###########\r\n");
+            // test_run_info((unsigned char *)"########## READING WITH BUILD IN API CALL ###########\r\n");
 
             dwt_cirdiags_t diag;
             if (dwt_readdiagnostics_acc(&diag, DWT_ACC_IDX_IP_M) == DWT_SUCCESS)
@@ -562,7 +601,7 @@ int simple_initiator(void)
             int n_samples = n_samples_ipatov;
             dwt_readcir((uint32_t*)cir_buf, acc_idx, 0, n_samples, modes);
             find_and_print_cir_peak_from_buffer(cir_buf, n_samples, modes);
-            print_cir(cir_buf, n_samples, modes);
+            // print_cir(cir_buf, n_samples, modes);
 
             // make cir_data_t struct and calculate distance
             cir_data_t cir_data;
@@ -574,7 +613,8 @@ int simple_initiator(void)
             cir_data.rx_minus_tx = (int)(rx_ts - tx_ts);
 
             for (int i = 0; i < n_samples; i++) {
-                cir_data.mag[i] = (float)cir_mag2_from_buf(&cir_buf[i * ((modes == DWT_CIR_READ_FULL) ? 6 : 4)], modes);
+                // cir_data.mag[i] = (float)cir_mag2_from_buf(&cir_buf[i * ((modes == DWT_CIR_READ_FULL) ? 6 : 4)], modes);
+                cir_data.mag[i] = cir_mag_from_buf(&cir_buf[i * ((modes == DWT_CIR_READ_FULL) ? 6 : 4)], modes);
             }
             calculate_distance(cir_data);
             

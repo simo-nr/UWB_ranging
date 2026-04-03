@@ -37,7 +37,7 @@ typedef struct {
 } tof_result_t;
 
 
-int detect_cir_start(const float *mag, size_t len);
+int detect_cir_start(const float *mag, size_t len, float mag_norm_buf[]);
 
 float rotate_cir(const float *mag, size_t len, int start_index, float fp_index, float *rotated_out);
 

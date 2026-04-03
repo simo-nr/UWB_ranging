@@ -105,34 +105,34 @@ int find_first_peak(const float *mag, size_t len, int start_index)
     return -1;
 }
 
-int detect_cir_start(const float *mag, size_t len)
+int detect_cir_start(const float *mag, size_t len, float mag_norm_buf[])
 {
     float *mag_norm;
     int noise_window_index;
     int first_peak_index;
 
-    if (mag == NULL || len == 0) {
+    if (mag == NULL || len == 0 || mag_norm_buf == NULL) {
         return -1;
     }
 
-    mag_norm = (float *)malloc(len * sizeof(float));
-    if (mag_norm == NULL) {
-        return -1;
-    }
+    mag_norm = mag_norm_buf;
+
+    // mag_norm = (float *)malloc(len * sizeof(float));
+    // if (mag_norm == NULL) {
+    //     return -1;
+    // }
 
     if (normalize_array(mag, mag_norm, len) != 0) {
-        free(mag_norm);
         return -1;
     }
 
     noise_window_index = find_noise_window(mag_norm, len);
     if (noise_window_index < 0) {
-        free(mag_norm);
+        // free(mag_norm);
         return -1;
     }
 
     first_peak_index = find_first_peak(mag_norm, len, noise_window_index + WINDOW_LENGTH);
-    free(mag_norm);
     return first_peak_index;
 }
 

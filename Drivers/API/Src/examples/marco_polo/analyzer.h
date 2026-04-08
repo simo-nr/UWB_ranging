@@ -29,6 +29,7 @@
 #define RESP_TX_DELAY_DTU (RESP_TX_DELAY_UUS * UUS_TO_DWT_TIME)
 
 #define TICKS_PER_CIR_SAMPLE 64
+#define MAX_PEAKS 7
 
 
 typedef struct {

@@ -1,13 +1,11 @@
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <stdint.h>
 #include <math.h>
 #include <float.h>
 #include <stddef.h>
 
 #include <deca_device_api.h>
-#include <string.h>
 
 #include "analyzer.h"
 
@@ -73,7 +71,7 @@ int find_noise_window(const float *mag, size_t len)
     min_sum = FLT_MAX;
     min_index = 0;
 
-    for (i = 0; i < len - WINDOW_LENGTH; i++) {
+    for (i = 0; i <= len - WINDOW_LENGTH; i++) {
         float window_sum = 0.0f;
         for (j = 0; j < WINDOW_LENGTH; j++) {
             window_sum += mag[i + j];
@@ -117,18 +115,12 @@ int detect_cir_start(const float *mag, size_t len, float mag_norm_buf[])
 
     mag_norm = mag_norm_buf;
 
-    // mag_norm = (float *)malloc(len * sizeof(float));
-    // if (mag_norm == NULL) {
-    //     return -1;
-    // }
-
     if (normalize_array(mag, mag_norm, len) != 0) {
         return -1;
     }
 
     noise_window_index = find_noise_window(mag_norm, len);
     if (noise_window_index < 0) {
-        // free(mag_norm);
         return -1;
     }
 
@@ -142,11 +134,11 @@ size_t detect_peaks(const float *mag,
                     float *peaks_out,
                     size_t max_peaks,
                     float mag_norm_buf[]) {
-    float *mag_norm;
     size_t peak_count = 0;
     size_t i;
     size_t n;
     size_t j;
+    float *mag_norm = mag_norm_buf;
 
     test_run_info((unsigned char *)"Detecting peaks...\n");
 
@@ -154,13 +146,6 @@ size_t detect_peaks(const float *mag,
         test_run_info((unsigned char *)"Invalid input to detect_peaks\n");
         return 0;
     }
-
-    // mag_norm = (float *)malloc(len * sizeof(float));
-    // if (mag_norm == NULL) {
-    //     test_run_info((unsigned char *)"Failed to allocate mag_norm in detect_peaks\n");
-    //     return 0;
-    // }
-    mag_norm = mag_norm_buf;
 
     if (normalize_array(mag, mag_norm, len) != 0) {
         test_run_info((unsigned char *)"Failed to normalize array in detect_peaks\n");

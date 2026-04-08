@@ -7,7 +7,7 @@
 typedef struct {
     float *mag;
     size_t length;
-    int rx_minus_tx;
+    int rx_minus_tx; // TODO turn into uint64_t
     int peak_index;
     char fp_index_hex[32];
     double fp_index_samples;

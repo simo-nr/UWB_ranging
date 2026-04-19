@@ -86,7 +86,7 @@ int find_noise_window(const float *mag, size_t len)
     return min_index;
 }
 
-int find_first_peak(const float *mag, size_t len, int start_index)
+int find_first_peak(const float *mag, size_t len, int start_index, float threshold)
 {
     size_t i;
 
@@ -95,7 +95,7 @@ int find_first_peak(const float *mag, size_t len, int start_index)
     }
 
     for (i = (size_t)start_index; i < len; i++) {
-        if (mag[i] > NOISE_THRESHOLD) {
+        if (mag[i] > threshold) {
             return (int)i;
         }
     }
@@ -103,13 +103,35 @@ int find_first_peak(const float *mag, size_t len, int start_index)
     return -1;
 }
 
-int detect_cir_start(const float *mag, size_t len, float mag_norm_buf[])
+int get_mean_and_var(const float *arr, size_t len, float *mean_out, float *var_out)
+{
+    size_t i;
+    float sum = 0.0f;
+    float sum_sq = 0.0f;
+
+    if (arr == NULL || mean_out == NULL || var_out == NULL || len == 0) {
+        return -1;
+    }
+
+    for (i = 0; i < len; i++) {
+        sum += arr[i];
+        sum_sq += arr[i] * arr[i];
+    }
+
+    *mean_out = sum / (float)len;
+    *var_out = (sum_sq / (float)len) - (*mean_out * *mean_out);
+    return 0;
+}
+
+int detect_cir_start(const float *mag, size_t len, float mag_norm_buf[], float *noise_threshold_out)
 {
     float *mag_norm;
     int noise_window_index;
     int first_peak_index;
+    float noise_mean;
+    float noise_var;
 
-    if (mag == NULL || len == 0 || mag_norm_buf == NULL) {
+    if (mag == NULL || len == 0 || mag_norm_buf == NULL || noise_threshold_out == NULL) {
         return -1;
     }
 
@@ -124,7 +146,14 @@ int detect_cir_start(const float *mag, size_t len, float mag_norm_buf[])
         return -1;
     }
 
-    first_peak_index = find_first_peak(mag_norm, len, noise_window_index + WINDOW_LENGTH);
+    if (get_mean_and_var(&mag_norm[noise_window_index], WINDOW_LENGTH, &noise_mean, &noise_var) != 0) {
+        return -1;
+    }
+    *noise_threshold_out = noise_mean + 7.0f * sqrtf(noise_var);
+
+    first_peak_index = find_first_peak(mag_norm, len, noise_window_index + WINDOW_LENGTH, *noise_threshold_out);
+
+
     return first_peak_index;
 }
 
@@ -219,30 +248,34 @@ float rotate_cir(const float *mag, size_t len, int start_index, float fp_index, 
 
 size_t get_relative_time_ticks(uint64_t rx_time,
                                float fp_index,
-                               const float *peaks,
-                               size_t peak_count,
+                               const ResponderPeak results[MAX_RESPONDERS],
+                               size_t result_count,
                                uint64_t *relative_times_out,
                                size_t max_out)
 {
     size_t i;
-    size_t count;
+    size_t out_count = 0;
 
-    if (peaks == NULL || relative_times_out == NULL) {
+    if (results == NULL || relative_times_out == NULL) {
         return 0;
     }
 
-    count = (peak_count < max_out) ? peak_count : max_out;
+    // count = (peak_count < max_out) ? peak_count : max_out;
 
-    for (i = 0; i < count; i++) {
-        double difference = (double)peaks[i] - (double)fp_index;
+    for (i = 0; i < result_count && out_count < max_out; i++) {
+        if (!results[i].valid) {
+            continue;
+        }
+
+        double difference = (double)results[i].peak - (double)fp_index;
         double relative_time = (double)rx_time + difference * TICKS_PER_CIR_SAMPLE;
         if (relative_time < 0.0) {
             relative_time = 0.0;
         }
-        relative_times_out[i] = (uint64_t)relative_time;
+        relative_times_out[out_count++] = (uint64_t)relative_time;
     }
 
-    return count;
+    return out_count;
 }
 
 tof_result_t tof_and_distance_from_absolute_rx(uint64_t total_time, uint32_t responder_id)
@@ -258,7 +291,7 @@ tof_result_t tof_and_distance_from_absolute_rx(uint64_t total_time, uint32_t res
     t_resp_i = RESP_TX_DELAY_DTU + TX_ANT_DLY_DTU + delta_i;
     tau_dtu = ((double)total_time - (double)t_resp_i) / 2.0;
     tau_s = tau_dtu * DTU_SECONDS;
-    d_m = tau_s * C_M_PER_S;
+    d_m = tau_s * SPEED_OF_LIGHT;
 
     // printf("Responder %u: delta_i (DTU) = %llu, t_resp_i (DTU) = %llu\n",
     //        responder_id,
@@ -287,4 +320,95 @@ tof_result_t tof_and_distance_from_absolute_rx(uint64_t total_time, uint32_t res
     result.tau_dtu = tau_dtu;
     result.distance_m = d_m;
     return result;
+}
+
+void interval_peak_detection(const float *mag,
+                             size_t len,
+                             float fp_index,
+                             float peak_threshold,
+                             int *found,
+                             ResponderPeak results[MAX_RESPONDERS],
+                             float mag_norm_buf[])
+{
+    int interval_step;
+    int interval_search_len;
+    int responder_id = 0;
+    int start;
+    float *mag_norm = mag_norm_buf;
+
+    if (mag == NULL || found == NULL || results == NULL || len == 0) {
+        return;
+    }
+
+    for (int i = 0; i < MAX_RESPONDERS; i++) {
+        results[i].responder_id = i;
+        results[i].peak = -1.0f;
+        results[i].valid = 0;
+    }
+
+    // print peak threshold
+    printf("Using peak threshold: %f\n", peak_threshold);
+
+    if (normalize_array(mag, mag_norm, len) != 0) {
+        // free(mag_norm);
+        return;
+    }
+
+    interval_step = (int)lround(INTENTIONAL_DELAY_NS);
+    interval_search_len = interval_step - 10;
+
+    for (start = -20; start < (int)len && responder_id < MAX_RESPONDERS; start += interval_step, responder_id++) {
+        int slice_start;
+        int slice_end;
+        int max_index = 0;
+        int found_peak = 0;
+
+        slice_start = (start >= 0) ? start : 0;
+        slice_end = start + interval_search_len;
+
+        if (slice_end < 0) {
+            printf("Warning: Interval for responder %d is empty. Skipping.\n", responder_id);
+            continue;
+        }
+
+        if (slice_end > (int)len) {
+            slice_end = (int)len;
+        }
+
+        printf("checking from index %d to %d for responder %d\n",
+               slice_start, slice_end, responder_id);
+
+        if (slice_start >= slice_end) {
+            printf("Warning: Interval for responder %d is empty. Skipping.\n", responder_id);
+            continue;
+        }
+
+        for (int j = 1; j < (slice_end - slice_start) - 1; j++) {
+            float curr = mag_norm[slice_start + j];
+            float prev = mag_norm[slice_start + j - 1];
+            float next = mag_norm[slice_start + j + 1];
+
+            if (curr > peak_threshold && curr > prev && curr > next) {
+                max_index = j;
+                found_peak = 1;
+                break;
+            }
+        }
+
+        if (!found_peak) {
+            printf("No peak found for responder %d in interval starting at index %d\n", responder_id, slice_start);
+        }
+
+        if (found_peak && mag_norm[slice_start + max_index] > peak_threshold) {
+            float peak = (float)(slice_start + max_index);
+
+            if (fabsf(peak - fp_index) < (SIGNAL_LENGTH / 2.0f)) {
+                peak = fp_index;
+            }
+
+            found[responder_id] = 1;
+            results[responder_id].peak = peak;
+            results[responder_id].valid = 1;
+        }
+    }
 }

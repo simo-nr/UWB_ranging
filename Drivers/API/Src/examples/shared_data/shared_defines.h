@@ -65,6 +65,10 @@ extern "C"
 #define DELTA_I_DTU 8192 // ≈128 ns
 // #define DELTA_I_DTU 32768 // ≈512 ns
 
+#define DTU_SECONDS (1.0 / (128.0 * 499.2e6))
+#define INTENTIONAL_DELAY_NS ((DELTA_I_DTU * DTU_SECONDS) * 1e9)
+
+
 #ifdef __cplusplus
 }
 #endif

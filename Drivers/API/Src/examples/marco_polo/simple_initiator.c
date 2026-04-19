@@ -134,42 +134,57 @@ static float cir_mag_from_buf(const uint8_t *ptr, dwt_cir_read_mode_e mode)
 }
 
 int calculate_distance(cir_data_t data) {
-    int start_index = detect_cir_start(data.mag, data.length, mag_norm_buf);
+    float noise_threshold;
+    int start_index = detect_cir_start(data.mag, data.length, mag_norm_buf, &noise_threshold);
     if (start_index == -1) {
         test_run_info((unsigned char *)"No CIR start detected.\n");
         return 0;
     }
+    printf("Calculated noise threshold: %f\n", noise_threshold);
 
     // TODO: compare these and pick
     sprintf(str_to_print, "Detected CIR start at index: %d\n", start_index);
     test_run_info((unsigned char *)str_to_print);
 
-    /* Temporarily use the peak index from the header as the CIR start */
-    start_index = (int)data.fp_index_samples;
+
+    // /* Temporarily use the peak index from the header as the CIR start */
+    // start_index = (int)data.fp_index_samples;
     
-    sprintf(str_to_print, "vs FP index found at: %d\n", start_index);
-    test_run_info((unsigned char *)str_to_print);
+    // sprintf(str_to_print, "vs FP index found at: %d\n", start_index);
+    // test_run_info((unsigned char *)str_to_print);
 
     float *rotated_mags = rotated_mags_buf;
 
     float fp_index = rotate_cir(data.mag, data.length, start_index, (float)data.fp_index_samples, rotated_mags);
 
-    float peaks[MAX_PEAKS];
-    size_t peak_count = detect_peaks(rotated_mags, data.length, fp_index, peaks, MAX_PEAKS, mag_norm_buf);
+    // float peaks[MAX_RESPONDERS];
+    // size_t peak_count = detect_peaks(rotated_mags, data.length, fp_index, peaks, MAX_RESPONDERS, mag_norm_buf);
+    // /* Print detected peaks */
+    // test_run_info((unsigned char *)"Detected peaks at indices: [");
+    // for (size_t i = 0; i < peak_count; i++) {
+    //     sprintf(str_to_print, "%f", peaks[i]);
+    //     test_run_info((unsigned char *)str_to_print);
+    //     if (i + 1 < peak_count) {
+    //         test_run_info((unsigned char *)", ");
+    //     }
+    // }
 
-    /* Print detected peaks */
-    test_run_info((unsigned char *)"Detected peaks at indices: [");
-    for (size_t i = 0; i < peak_count; i++) {
-        sprintf(str_to_print, "%f", peaks[i]);
-        test_run_info((unsigned char *)str_to_print);
-        if (i + 1 < peak_count) {
-            test_run_info((unsigned char *)", ");
+    test_run_info((unsigned char *)"]\n\n");
+    int found[MAX_RESPONDERS];
+    ResponderPeak results[MAX_RESPONDERS];
+    interval_peak_detection(rotated_mags, data.length, fp_index, noise_threshold, found, results, mag_norm_buf);
+
+    for (int r = 0; r < MAX_RESPONDERS; r++) {
+        if (results[r].valid) {
+            printf("Responder %d: Detected peak at index %f\n", results[r].responder_id, results[r].peak);
+        } else {
+            // printf("Responder %d: No valid peak detected\n", r);
         }
     }
-    test_run_info((unsigned char *)"]\n\n");
 
-    uint64_t times[MAX_PEAKS];
-    size_t time_count = get_relative_time_ticks((uint64_t)data.rx_minus_tx, fp_index, peaks, peak_count, times, MAX_PEAKS);
+    uint64_t times[MAX_RESPONDERS];
+    // size_t time_count = get_relative_time_ticks((uint64_t)data.rx_minus_tx, fp_index, peaks,   peak_count, times, MAX_RESPONDERS);
+    size_t time_count = get_relative_time_ticks((uint64_t)data.rx_minus_tx, fp_index, results, MAX_RESPONDERS, times, MAX_RESPONDERS);
 
     for (size_t i = 0; i < time_count; i++) {
         tof_result_t result = tof_and_distance_from_absolute_rx(times[i], i);

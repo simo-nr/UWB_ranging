@@ -339,6 +339,9 @@ int simple_initiator(void)
             uint64_t rx_ts = get_rx_timestamp_u64();
             int64_t tx_rx_diff = (int64_t)rx_ts - (int64_t)tx_ts;
 
+            sprintf(str_to_print, "RX_TS - TX_TS = %lld dtu\n", (long long)tx_rx_diff);
+            test_run_info((unsigned char *)str_to_print);
+
             dwt_cirdiags_t diag;
             if (dwt_readdiagnostics_acc(&diag, DWT_ACC_IDX_IP_M) == DWT_SUCCESS)
             {

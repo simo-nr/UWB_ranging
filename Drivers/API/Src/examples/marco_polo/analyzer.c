@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <stdint.h>
 #include <math.h>
@@ -37,6 +36,7 @@ int normalize_array(const float *mag, float *out, size_t len)
 {
     size_t i;
     float max_mag;
+    float inv_max_mag;
 
     if (mag == NULL || out == NULL || len == 0) {
         return -1;
@@ -50,8 +50,9 @@ int normalize_array(const float *mag, float *out, size_t len)
         return 0;
     }
 
+    inv_max_mag = 1.0f / max_mag;
     for (i = 0; i < len; i++) {
-        out[i] = mag[i] / max_mag;
+        out[i] = mag[i] * inv_max_mag;
     }
 
     return 0;
@@ -60,7 +61,7 @@ int normalize_array(const float *mag, float *out, size_t len)
 int find_noise_window(const float *mag, size_t len)
 {
     size_t i;
-    size_t j;
+    float window_sum;
     float min_sum;
     int min_index;
 
@@ -68,18 +69,21 @@ int find_noise_window(const float *mag, size_t len)
         return -1;
     }
 
-    min_sum = FLT_MAX;
+    window_sum = 0.0f;
+    for (i = 0; i < WINDOW_LENGTH; i++) {
+        window_sum += mag[i];
+    }
+
+    min_sum = window_sum;
     min_index = 0;
 
-    for (i = 0; i <= len - WINDOW_LENGTH; i++) {
-        float window_sum = 0.0f;
-        for (j = 0; j < WINDOW_LENGTH; j++) {
-            window_sum += mag[i + j];
-        }
+    for (i = WINDOW_LENGTH; i < len; i++) {
+        window_sum += mag[i];
+        window_sum -= mag[i - WINDOW_LENGTH];
 
         if (window_sum < min_sum) {
             min_sum = window_sum;
-            min_index = (int)i;
+            min_index = (int)(i - WINDOW_LENGTH + 1);
         }
     }
 
@@ -125,36 +129,36 @@ int get_mean_and_var(const float *arr, size_t len, float *mean_out, float *var_o
 
 int detect_cir_start(const float *mag, size_t len, float mag_norm_buf[], float *noise_threshold_out)
 {
-    float *mag_norm;
     int noise_window_index;
-    int first_peak_index;
     float noise_mean;
     float noise_var;
+    float threshold;
 
     if (mag == NULL || len == 0 || mag_norm_buf == NULL || noise_threshold_out == NULL) {
         return -1;
     }
 
-    mag_norm = mag_norm_buf;
-
-    if (normalize_array(mag, mag_norm, len) != 0) {
+    if (normalize_array(mag, mag_norm_buf, len) != 0) {
         return -1;
     }
 
-    noise_window_index = find_noise_window(mag_norm, len);
+    noise_window_index = find_noise_window(mag_norm_buf, len);
     if (noise_window_index < 0) {
         return -1;
     }
 
-    if (get_mean_and_var(&mag_norm[noise_window_index], WINDOW_LENGTH, &noise_mean, &noise_var) != 0) {
+    if (get_mean_and_var(mag_norm_buf + noise_window_index, WINDOW_LENGTH, &noise_mean, &noise_var) != 0) {
         return -1;
     }
-    *noise_threshold_out = noise_mean + 7.0f * sqrtf(noise_var);
 
-    first_peak_index = find_first_peak(mag_norm, len, noise_window_index + WINDOW_LENGTH, *noise_threshold_out);
+    if (noise_var < 0.0f) {
+        noise_var = 0.0f;
+    }
 
+    threshold = noise_mean + 7.0f * sqrtf(noise_var);
+    *noise_threshold_out = threshold;
 
-    return first_peak_index;
+    return find_first_peak(mag_norm_buf, len, noise_window_index + WINDOW_LENGTH, threshold);
 }
 
 size_t detect_peaks(const float *mag,
@@ -169,26 +173,34 @@ size_t detect_peaks(const float *mag,
     size_t j;
     float *mag_norm = mag_norm_buf;
 
-    test_run_info((unsigned char *)"Detecting peaks...\n");
+    // test_run_info((unsigned char *)"Detecting peaks...\n");
 
-    if (mag == NULL || peaks_out == NULL || len < 3 || max_peaks == 0) {
+    if (mag == NULL || peaks_out == NULL || mag_norm_buf == NULL || len < 3 || max_peaks == 0) {
         test_run_info((unsigned char *)"Invalid input to detect_peaks\n");
         return 0;
     }
 
-    if (normalize_array(mag, mag_norm, len) != 0) {
-        test_run_info((unsigned char *)"Failed to normalize array in detect_peaks\n");
-        // free(mag_norm);
-        return 0;
+    if (mag != mag_norm_buf) {
+        if (normalize_array(mag, mag_norm, len) != 0) {
+            test_run_info((unsigned char *)"Failed to normalize array in detect_peaks\n");
+            // free(mag_norm);
+            return 0;
+        }
     }
 
-    i = 0;
+    // i = 0;
+    i = 1;
     n = len - 1;
     while (i < n && peak_count < max_peaks) {
-        if (i > 0 &&
-            mag_norm[i] > PEAK_THRESHOLD &&
-            mag_norm[i] > mag_norm[i - 1] &&
-            mag_norm[i] > mag_norm[i + 1]) {
+        // if (i > 0 &&
+        //     mag_norm[i] > PEAK_THRESHOLD &&
+        //     mag_norm[i] > mag_norm[i - 1] &&
+        //     mag_norm[i] > mag_norm[i + 1]) {
+        float curr = mag_norm[i];
+
+        if (curr > PEAK_THRESHOLD &&
+            curr > mag_norm[i - 1] &&
+            curr > mag_norm[i + 1]) {
             peaks_out[peak_count++] = (float)i;
             i += SIGNAL_LENGTH;
         } else {
@@ -196,36 +208,36 @@ size_t detect_peaks(const float *mag,
         }
     }
 
-    // print detected peaks
-    test_run_info((unsigned char *)"Detected peaks at indices: [");
-    for (j = 0; j < peak_count; j++) {
-        sprintf(str_to_print, "%f", peaks_out[j]);
-        test_run_info((unsigned char *)str_to_print);
-        if (j + 1 < peak_count) {
-            test_run_info((unsigned char *)", ");
-        }
-    }
-    test_run_info((unsigned char *)"]\n\n");
+    // // print detected peaks
+    // test_run_info((unsigned char *)"Detected peaks at indices: [");
+    // for (j = 0; j < peak_count; j++) {
+    //     sprintf(str_to_print, "%f", peaks_out[j]);
+    //     test_run_info((unsigned char *)str_to_print);
+    //     if (j + 1 < peak_count) {
+    //         test_run_info((unsigned char *)", ");
+    //     }
+    // }
+    // test_run_info((unsigned char *)"]\n\n");
 
     // sprintf(str_to_print, "Detected %lu peaks before fp_index adjustment\r\n",
     //     (unsigned long)peak_count);
     // test_run_info((unsigned char *)str_to_print);
 
     for (j = 0; j < peak_count; j++) {
-        if (fabs((double)peaks_out[j] - (double)fp_index) < ((double)SIGNAL_LENGTH / 2.0)) {
+        if (fabsf(peaks_out[j] - fp_index) < (SIGNAL_LENGTH / 2.0f)) {
             peaks_out[j] = fp_index;
         }
     }
 
-    for (i = 0; i < peak_count; i++) {
-        for (j = i + 1; j < peak_count; j++) {
-            if (peaks_out[j] < peaks_out[i]) {
-                float tmp = peaks_out[i];
-                peaks_out[i] = peaks_out[j];
-                peaks_out[j] = tmp;
-            }
-        }
-    }
+    // for (i = 0; i < peak_count; i++) {
+    //     for (j = i + 1; j < peak_count; j++) {
+    //         if (peaks_out[j] < peaks_out[i]) {
+    //             float tmp = peaks_out[i];
+    //             peaks_out[i] = peaks_out[j];
+    //             peaks_out[j] = tmp;
+    //         }
+    //     }
+    // }
 
     // free(mag_norm);
     return peak_count;
@@ -298,11 +310,11 @@ tof_result_t tof_and_distance_from_absolute_rx(uint64_t total_time, uint32_t res
     //        (unsigned long long)delta_i,
     //        (unsigned long long)t_resp_i);
 
-    sprintf(str_to_print, "Responder %u: delta_i (DTU) = %llu, t_resp_i (DTU) = %llu\r\n",
-            responder_id,
-            (unsigned long long)delta_i,
-            (unsigned long long)t_resp_i);
-    test_run_info((unsigned char *)str_to_print);
+    // sprintf(str_to_print, "Responder %u: delta_i (DTU) = %llu, t_resp_i (DTU) = %llu\r\n",
+    //         responder_id,
+    //         (unsigned long long)delta_i,
+    //         (unsigned long long)t_resp_i);
+    // test_run_info((unsigned char *)str_to_print);
     
     // printf("Total time (DTU) = %llu, ToF (DTU) = %.2f, ToF (ns) = %.6f, Distance (m) = %.2f\n",
     //        (unsigned long long)total_time,
@@ -310,12 +322,12 @@ tof_result_t tof_and_distance_from_absolute_rx(uint64_t total_time, uint32_t res
     //        tau_s * 1e9,
     //        d_m);
 
-    sprintf(str_to_print, "Total time (DTU) = %llu, ToF (DTU) = %.2f, ToF (ns) = %.6f, Distance (m) = %.2f\r\n",
-            (unsigned long long)total_time,
-            tau_dtu,
-            tau_s * 1e9,
-            d_m);
-    test_run_info((unsigned char *)str_to_print);
+    // sprintf(str_to_print, "Total time (DTU) = %llu, ToF (DTU) = %.2f, ToF (ns) = %.6f, Distance (m) = %.2f\r\n",
+    //         (unsigned long long)total_time,
+    //         tau_dtu,
+    //         tau_s * 1e9,
+    //         d_m);
+    // test_run_info((unsigned char *)str_to_print);
 
     result.tau_dtu = tau_dtu;
     result.distance_m = d_m;
@@ -336,7 +348,7 @@ void interval_peak_detection(const float *mag,
     int start;
     float *mag_norm = mag_norm_buf;
 
-    if (mag == NULL || found == NULL || results == NULL || len == 0) {
+    if (mag == NULL || found == NULL || results == NULL || mag_norm_buf == NULL || len == 0) {
         return;
     }
 
@@ -347,11 +359,13 @@ void interval_peak_detection(const float *mag,
     }
 
     // print peak threshold
-    printf("Using peak threshold: %f\n", peak_threshold);
+    // printf("Using peak threshold: %f\n", peak_threshold);
 
-    if (normalize_array(mag, mag_norm, len) != 0) {
-        // free(mag_norm);
-        return;
+    if (mag != mag_norm_buf) {
+        if (normalize_array(mag, mag_norm, len) != 0) {
+            // free(mag_norm);
+            return;
+        }
     }
 
     interval_step = (int)lround(INTENTIONAL_DELAY_NS);
@@ -367,7 +381,7 @@ void interval_peak_detection(const float *mag,
         slice_end = start + interval_search_len;
 
         if (slice_end < 0) {
-            printf("Warning: Interval for responder %d is empty. Skipping.\n", responder_id);
+            // printf("Warning: Interval for responder %d is empty. Skipping.\n", responder_id);
             continue;
         }
 
@@ -375,11 +389,11 @@ void interval_peak_detection(const float *mag,
             slice_end = (int)len;
         }
 
-        printf("checking from index %d to %d for responder %d\n",
-               slice_start, slice_end, responder_id);
+        // printf("checking from index %d to %d for responder %d\n",
+        //        slice_start, slice_end, responder_id);
 
         if (slice_start >= slice_end) {
-            printf("Warning: Interval for responder %d is empty. Skipping.\n", responder_id);
+            // printf("Warning: Interval for responder %d is empty. Skipping.\n", responder_id);
             continue;
         }
 
@@ -396,7 +410,7 @@ void interval_peak_detection(const float *mag,
         }
 
         if (!found_peak) {
-            printf("No peak found for responder %d in interval starting at index %d\n", responder_id, slice_start);
+            // printf("No peak found for responder %d in interval starting at index %d\n", responder_id, slice_start);
         }
 
         if (found_peak && mag_norm[slice_start + max_index] > peak_threshold) {

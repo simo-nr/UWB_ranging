@@ -245,15 +245,28 @@ size_t detect_peaks(const float *mag,
 
 float rotate_cir(const float *mag, size_t len, int start_index, float fp_index, float *rotated_out)
 {
+    size_t start;
+    size_t out_index;
     size_t i;
 
     if (mag == NULL || rotated_out == NULL || len == 0 || start_index < 0 || (size_t)start_index >= len) {
         return fp_index;
     }
 
-    for (i = 0; i < len; i++) {
-        rotated_out[i] = mag[(start_index + (int)i) % (int)len];
+    // for (i = 0; i < len; i++) {
+    //     rotated_out[i] = mag[(start_index + (int)i) % (int)len];
+    // }
+    start = (size_t)start_index;
+    out_index = 0;
+
+    for (i = start; i < len; i++) {
+        rotated_out[out_index++] = mag[i];
     }
+
+    for (i = 0; i < start; i++) {
+        rotated_out[out_index++] = mag[i];
+    }
+
 
     return fp_index - (float)start_index;
 }
@@ -368,7 +381,8 @@ void interval_peak_detection(const float *mag,
         }
     }
 
-    interval_step = (int)lround(INTENTIONAL_DELAY_NS);
+    // interval_step = (int)lround(INTENTIONAL_DELAY_NS);
+    interval_step = (int)(INTENTIONAL_DELAY_NS + 0.5f);
     interval_search_len = interval_step - 10;
 
     for (start = -20; start < (int)len && responder_id < MAX_RESPONDERS; start += interval_step, responder_id++) {
@@ -409,11 +423,7 @@ void interval_peak_detection(const float *mag,
             }
         }
 
-        if (!found_peak) {
-            // printf("No peak found for responder %d in interval starting at index %d\n", responder_id, slice_start);
-        }
-
-        if (found_peak && mag_norm[slice_start + max_index] > peak_threshold) {
+        if (found_peak) {
             float peak = (float)(slice_start + max_index);
 
             if (fabsf(peak - fp_index) < (SIGNAL_LENGTH / 2.0f)) {

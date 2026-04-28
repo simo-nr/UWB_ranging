@@ -436,3 +436,99 @@ void interval_peak_detection(const float *mag,
         }
     }
 }
+
+
+void interval_peak_detection_wrapped(const float *mag,
+                                     size_t len,
+                                     int start_index,
+                                     float fp_index,
+                                     float peak_threshold,
+                                     ResponderPeak results[MAX_RESPONDERS])
+{
+    int interval_step;
+    int interval_search_len;
+    int responder_id = 0;
+    int start;
+
+    if (mag == NULL || results == NULL || len == 0 || start_index < 0 || (size_t)start_index >= len) {
+        return;
+    }
+
+    for (int i = 0; i < MAX_RESPONDERS; i++) {
+        results[i].responder_id = i;
+        results[i].peak = -1.0f;
+        results[i].valid = 0;
+        results[i].time = 0;
+        results[i].distance = 0;
+    }
+
+    interval_step = (int)(INTENTIONAL_DELAY_NS + 0.5f);
+    interval_search_len = interval_step - 10;
+
+    for (start = -20; start < (int)len && responder_id < MAX_RESPONDERS; start += interval_step, responder_id++) {
+        int slice_start;
+        int slice_end;
+        int max_index = 0;
+        int found_peak = 0;
+
+        slice_start = (start >= 0) ? start : 0;
+        slice_end = start + interval_search_len;
+
+        if (slice_end < 0) {
+            continue;
+        }
+
+        if (slice_end > (int)len) {
+            slice_end = (int)len;
+        }
+
+        if (slice_start >= slice_end) {
+            continue;
+        }
+
+        for (int j = 1; j < (slice_end - slice_start) - 1; j++) {
+            int rotated_idx = slice_start + j;
+            int phys_idx = start_index + rotated_idx;
+            int prev_idx;
+            int next_idx;
+            float curr;
+            float prev;
+            float next;
+
+            if (phys_idx >= (int)len) {
+                phys_idx -= (int)len;
+            }
+
+            prev_idx = phys_idx - 1;
+            if (prev_idx < 0) {
+                prev_idx = (int)len - 1;
+            }
+
+            next_idx = phys_idx + 1;
+            if (next_idx >= (int)len) {
+                next_idx = 0;
+            }
+
+            curr = mag[phys_idx];
+            prev = mag[prev_idx];
+            next = mag[next_idx];
+
+            if (curr > peak_threshold && curr > prev && curr > next) {
+                max_index = rotated_idx;
+                found_peak = 1;
+                break;
+            }
+        }
+
+        if (found_peak) {
+            float peak = (float)max_index;
+
+            if (fabsf(peak - fp_index) < (SIGNAL_LENGTH / 2.0f)) {
+                peak = fp_index;
+            }
+
+            results[responder_id].peak = peak;
+            results[responder_id].valid = 1;
+        }
+    }
+}

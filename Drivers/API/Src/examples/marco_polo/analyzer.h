@@ -64,3 +64,10 @@ void interval_peak_detection(const float *mag,
                              float fp_index,
                              float peak_threshold,
                              ResponderPeak results[MAX_RESPONDERS]);
+
+void interval_peak_detection_wrapped(const float *mag,
+                                     size_t len,
+                                     int start_index,
+                                     float fp_index,
+                                     float peak_threshold,
+                                     ResponderPeak results[MAX_RESPONDERS]);

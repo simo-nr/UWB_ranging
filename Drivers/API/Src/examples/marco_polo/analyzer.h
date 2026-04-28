@@ -41,8 +41,6 @@ typedef struct {
 
 int detect_cir_start(cir_data_t cir_data, float mag_norm_buf[], float *noise_threshold_out);
 
-float rotate_cir(const float *mag, size_t len, int start_index, float fp_index, float *rotated_out);
-
 size_t detect_peaks(const float *mag,
                     size_t len,
                     float fp_index,
@@ -59,8 +57,9 @@ size_t get_relative_time_ticks(uint64_t rx_time,
 
 tof_result_t tof_and_distance_from_absolute_rx(uint64_t total_time, uint32_t responder_id);
 
-void interval_peak_detection(const float *mag,
-                             size_t len,
-                             float fp_index,
-                             float peak_threshold,
-                             ResponderPeak results[MAX_RESPONDERS]);
+void interval_peak_detection_wrapped(const float *mag,
+                                     size_t len,
+                                     int start_index,
+                                     float fp_index,
+                                     float peak_threshold,
+                                     ResponderPeak results[MAX_RESPONDERS]);

@@ -55,7 +55,7 @@ static float cir_mag_buf[DWT_CIR_LEN_MAX];
 extern dwt_config_t config_options;
 extern dwt_txconfig_t txconfig_options;
 
-// #define TIMING_TESTS
+#define TIMING_TESTS
 #if defined(TIMING_TESTS)
 uint32_t t_start;
 uint32_t t_frame_rec;
@@ -80,13 +80,13 @@ uint32_t time_to_process_cir_us;
 
 uint32_t t_start_processing;
 uint32_t t_cir_start_detect;
-uint32_t t_cir_rotation;
+// uint32_t t_cir_rotation;
 uint32_t t_peak_detection;
 uint32_t t_relative_time;
 uint32_t t_distance_calc;
 
 uint32_t start_detected;
-uint32_t cir_rotation;
+// uint32_t cir_rotation;
 uint32_t peak_detection;
 uint32_t relative_time_calc;
 uint32_t distance_calc;
@@ -220,18 +220,17 @@ int calculate_distance(cir_data_t data) {
     t_cir_start_detect = timing_now_cycles();
     #endif
 
-    float *rotated_mags = rotated_mags_buf;
+    // #if defined(TIMING_TESTS)
+    // t_cir_rotation = timing_now_cycles();
+    // #endif
 
-    // float fp_index = rotate_cir(data.mag, data.length, start_index, (float)data.fp_index_samples, rotated_mags);
-    float fp_index = rotate_cir(mag_norm_buf, data.length, start_index, (float)data.fp_index_samples, rotated_mags);
+    float fp_index = (float)data.fp_index_samples - (float)start_index;
+    if (fp_index < 0.0f) {
+        fp_index += (float)data.length;
+    }
 
-    #if defined(TIMING_TESTS)
-    t_cir_rotation = timing_now_cycles();
-    #endif
-
-    // int found[MAX_RESPONDERS];
     ResponderPeak results[MAX_RESPONDERS];
-    interval_peak_detection(rotated_mags, data.length, fp_index, noise_threshold, results);
+    interval_peak_detection_wrapped(mag_norm_buf, data.length, start_index, fp_index, noise_threshold, results);
 
     #if defined(TIMING_TESTS)
     t_peak_detection = timing_now_cycles();
@@ -248,27 +247,16 @@ int calculate_distance(cir_data_t data) {
     for(int i = 0; i < MAX_RESPONDERS; i++) {
         if(results[i].valid) {
             tof_result_t tof_result = tof_and_distance_from_absolute_rx(results[i].time, results[i].responder_id);
-            // results[i].time = (int)tof_result.tau_dtu;
             results[i].distance = tof_result.distance_m;
         } 
         printf("%.3f, ", results[i].distance);
-        // sprintf(str_to_print, (unsigned char *)"%d, ", results[i].distance);
-        // test_run_info(str_to_print);
     }
     printf("]\n");
-
-    // for (size_t i = 0; i < time_count; i++) {
-    //     tof_result_t result = tof_and_distance_from_absolute_rx(times[i], i);
-    //     (void)result;
-    //     sprintf(str_to_print, "Peak %zu: tau_dtu = %f, distance_m = %f", i, result.tau_dtu, result.distance_m);
-    //     test_run_info((unsigned char *)str_to_print);
-    // }
-    // test_run_info((unsigned char *)"");
 
     #if defined(TIMING_TESTS)
     t_distance_calc = timing_now_cycles();
     #endif
-
+    
     return 0;
 }
 
@@ -353,17 +341,17 @@ int simple_initiator(void)
     //         (unsigned long)((cia_conf >> 20) & 1U));
     // test_run_info((unsigned char *)str_to_print);
 
-    // printf("Waiting for button press to start...\n");
+    printf("Waiting for button press to start...\n");
     
-    // //////////////// wait for button press to start the test ////////////////
-    // while (!bsp_board_button_state_get(0)) {
-    //     Sleep(10);
-    // }
-    // while (bsp_board_button_state_get(0)) {
-    //     Sleep(10);
-    // }
+    //////////////// wait for button press to start the test ////////////////
+    while (!bsp_board_button_state_get(0)) {
+        Sleep(10);
+    }
+    while (bsp_board_button_state_get(0)) {
+        Sleep(10);
+    }
 
-    // printf("Button pressed, starting test!\n");
+    printf("Button pressed, starting test!\n");
 
     #if defined(TIMING_TESTS)
     timing_init();
@@ -372,23 +360,23 @@ int simple_initiator(void)
 
     int counter = 0;
     /* Loop forever, send frame when a button is pressed. */
-    while (TRUE)
+    while (counter == 0)
     {
-        printf("Starting round %d...\n", counter);
-        printf("Waiting for button press to start...\n");
-        /* Wait for Button 1 (index 0) to be pressed. */
-        while (!bsp_board_button_state_get(0))
-        {
-            /* Small delay to avoid a tight busy loop. */
-            Sleep(10);
-        }
+        // printf("Starting round %d...\n", counter);
+        // printf("Waiting for button press to start...\n");
+        // /* Wait for Button 1 (index 0) to be pressed. */
+        // while (!bsp_board_button_state_get(0))
+        // {
+        //     /* Small delay to avoid a tight busy loop. */
+        //     Sleep(10);
+        // }
 
-        /* Simple debounce: wait until the button is released. */
-        while (bsp_board_button_state_get(0))
-        {
-            Sleep(10);
-        }
-        printf("Button pressed, sending frame!\n");
+        // /* Simple debounce: wait until the button is released. */
+        // while (bsp_board_button_state_get(0))
+        // {
+        //     Sleep(10);
+        // }
+        // printf("Button pressed, sending frame!\n");
 
         /////////////// sending frame /////////////
 
@@ -409,25 +397,10 @@ int simple_initiator(void)
          * API function to access it.*/
         waitforsysstatus(NULL, NULL, DWT_INT_TXFRS_BIT_MASK, 0);
         
-        // /* Read TX timestamp here */
-        // uint8_t ts[5];
-        // uint64_t tx_time = 0;
-
-        // dwt_readtxtimestamp(ts);
-
-        // tx_time = ((uint64_t)ts[0]) |
-        //         ((uint64_t)ts[1] << 8) |
-        //         ((uint64_t)ts[2] << 16) |
-        //         ((uint64_t)ts[3] << 24) |
-        //         ((uint64_t)ts[4] << 32);
-
         uint64_t tx_ts = get_tx_timestamp_u64();
 
         /* Clear TX frame sent event. */
         dwt_writesysstatuslo(DWT_INT_TXFRS_BIT_MASK);
-
-        // sprintf(str_to_print,"INIT Frame Sent %d\r\n", counter);
-        // test_run_info((unsigned char *)str_to_print);
 
         /* TESTING BREAKPOINT LOCATION #1 */
 
@@ -452,9 +425,6 @@ int simple_initiator(void)
         {
             uint64_t rx_ts = get_rx_timestamp_u64();
             int64_t tx_rx_diff = (int64_t)rx_ts - (int64_t)tx_ts;
-
-            // sprintf(str_to_print, "RX_TS - TX_TS = %lld dtu\n", (long long)tx_rx_diff);
-            // test_run_info((unsigned char *)str_to_print);
 
             dwt_cirdiags_t diag;
             if (dwt_readdiagnostics_acc(&diag, DWT_ACC_IDX_IP_M) == DWT_SUCCESS)
@@ -488,7 +458,6 @@ int simple_initiator(void)
             /* Ipatov data */
             int n_samples = n_samples_ipatov;
             dwt_readcir((uint32_t*)cir_buf, acc_idx, 0, n_samples, modes);
-            // find_and_print_cir_peak_from_buffer(cir_buf, n_samples, modes);
             
             #if defined(TIMING_TESTS)
             t_cir_read = timing_now_cycles();
@@ -510,11 +479,11 @@ int simple_initiator(void)
             print_cir(cir_buf, n_samples, modes);
             #endif
 
-            // make cir_data_t struct and calculate distance
+            /* make cir_data_t struct and calculate distance */
             cir_data_t cir_data;
             cir_data.mag = cir_mag_buf;
             cir_data.length = n_samples;
-            // convert Q10.6 diag.FpIndex to float
+            /* convert Q10.6 diag.FpIndex to float */
             cir_data.fp_index_samples = (float)diag.FpIndex / 64.0f;
             cir_data.rx_minus_tx = (int)(rx_ts - tx_ts);
             cir_data.peak_amp = (float)diag.peakAmp * 0.25f;
@@ -536,7 +505,7 @@ int simple_initiator(void)
             /* Clear RX error events in the DW IC status register. */
             dwt_writesysstatuslo(SYS_STATUS_ALL_RX_ERR);
         }
-        // sleep to let the UART finish printing
+        /* sleep to let the UART finish printing */
         // nrf_delay_ms(30);
         counter++;
     }
@@ -553,8 +522,7 @@ int simple_initiator(void)
     time_to_process_cir = (t_cir_processed - t_cir_read);
 
     start_detected = (t_cir_start_detect - t_start_processing);
-    cir_rotation = (t_cir_rotation - t_cir_start_detect);
-    peak_detection = (t_peak_detection - t_cir_rotation);
+    peak_detection = (t_peak_detection - t_cir_start_detect);
     relative_time_calc = (t_relative_time - t_peak_detection);
     distance_calc = (t_distance_calc - t_relative_time);
 
@@ -565,15 +533,9 @@ int simple_initiator(void)
 
     uint32_t processing_total_cycles = t_distance_calc - t_start_processing;
     uint32_t start_detected_pct_x100 = percent_x100(start_detected, processing_total_cycles);
-    uint32_t cir_rotation_pct_x100 = percent_x100(cir_rotation, processing_total_cycles);
     uint32_t peak_detection_pct_x100 = percent_x100(peak_detection, processing_total_cycles);
     uint32_t relative_time_pct_x100 = percent_x100(relative_time_calc, processing_total_cycles);
     uint32_t distance_calc_pct_x100 = percent_x100(distance_calc, processing_total_cycles);
-
-    // time_to_read_frame_us = cycles_to_us(time_to_read_frame);
-    // time_to_read_diag_us = cycles_to_us(time_to_read_diag);
-    // time_to_read_cir_us = cycles_to_us(time_to_read_cir);
-    // time_to_process_cir_us = cycles_to_us(time_to_process_cir);
 
     sprintf(str_to_print,
             "Total execution time: %lu cycles (%lu us, %lu ms)\r\n",
@@ -583,13 +545,10 @@ int simple_initiator(void)
     test_run_info((unsigned char *)str_to_print);
 
         sprintf(str_to_print,
-            "Processing split (inside CIR processing): Start detect=%lu cycles (%lu.%02lu%%), Rotation=%lu cycles (%lu.%02lu%%), Peak=%lu cycles (%lu.%02lu%%), Relative time=%lu cycles (%lu.%02lu%%), Distance=%lu cycles (%lu.%02lu%%)\r\n",
+            "Processing split (inside CIR processing): Start detect=%lu cycles (%lu.%02lu%%), Peak=%lu cycles (%lu.%02lu%%), Relative time=%lu cycles (%lu.%02lu%%), Distance=%lu cycles (%lu.%02lu%%)\r\n",
             (unsigned long)start_detected,
             (unsigned long)(start_detected_pct_x100 / 100U),
             (unsigned long)(start_detected_pct_x100 % 100U),
-            (unsigned long)cir_rotation,
-            (unsigned long)(cir_rotation_pct_x100 / 100U),
-            (unsigned long)(cir_rotation_pct_x100 % 100U),
             (unsigned long)peak_detection,
             (unsigned long)(peak_detection_pct_x100 / 100U),
             (unsigned long)(peak_detection_pct_x100 % 100U),

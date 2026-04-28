@@ -14,124 +14,6 @@ extern void test_run_info(unsigned char *data);
 static char str_to_print[DWT_CIR_LEN_MAX * 2 * 3]; /* Buffer for printing*/
 
 
-// static float max_value(const float *arr, size_t len)
-// {
-//     size_t i;
-//     float max_val;
-
-//     if (arr == NULL || len == 0) {
-//         return 0.0f;
-//     }
-
-//     max_val = arr[0];
-//     for (i = 1; i < len; i++) {
-//         if (arr[i] > max_val) {
-//             max_val = arr[i];
-//         }
-//     }
-
-//     return max_val;
-// }
-
-// int normalize_array(const float *mag, float *out, size_t len)
-// {
-//     size_t i;
-//     float max_mag;
-//     float inv_max_mag;
-
-//     if (mag == NULL || out == NULL || len == 0) {
-//         return -1;
-//     }
-
-//     max_mag = max_value(mag, len);
-//     if (max_mag == 0.0f) {
-//         for (i = 0; i < len; i++) {
-//             out[i] = 0.0f;
-//         }
-//         return 0;
-//     }
-
-//     inv_max_mag = 1.0f / max_mag;
-//     for (i = 0; i < len; i++) {
-//         out[i] = mag[i] * inv_max_mag;
-//     }
-
-//     return 0;
-// }
-
-// int find_noise_window(const float *mag, size_t len)
-// {
-//     size_t i;
-//     float window_sum;
-//     float min_sum;
-//     int min_index;
-
-//     if (mag == NULL || len <= WINDOW_LENGTH) {
-//         return -1;
-//     }
-
-//     window_sum = 0.0f;
-//     for (i = 0; i < WINDOW_LENGTH; i++) {
-//         window_sum += mag[i];
-//     }
-
-//     min_sum = window_sum;
-//     min_index = 0;
-
-//     for (i = WINDOW_LENGTH; i < len; i++) {
-//         window_sum += mag[i];
-//         window_sum -= mag[i - WINDOW_LENGTH];
-
-//         if (window_sum < min_sum) {
-//             min_sum = window_sum;
-//             min_index = (int)(i - WINDOW_LENGTH + 1);
-//         }
-//     }
-
-//     return min_index;
-// }
-
-// int find_noise_window(cir_data_t *cir_data, float mag[])
-// {
-//     size_t i;
-//     float window_sum;
-//     float min_sum;
-//     int min_index;
-
-//     if (mag == NULL || cir_data->length <= WINDOW_LENGTH) {
-//         return -1;
-//     }
-
-//     for (i = 0; i < cir_data->length; i++) {
-//         mag[i] = cir_data->mag[i] / cir_data->peak_amp;
-//     }
-
-//     window_sum = 0.0f;
-//     for (i = 0; i < WINDOW_LENGTH; i++) {
-//         float value = cir_data->mag[i] / cir_data->peak_amp;
-//         mag[i] = value;
-//         window_sum += value;
-//     }
-
-//     min_sum = window_sum;
-//     min_index = 0;
-
-//     for (i = WINDOW_LENGTH; i < cir_data->length; i++) {
-//         float value = cir_data->mag[i] / cir_data->peak_amp;
-//         mag[i] = value;
-
-//         window_sum += value;
-//         window_sum -= mag[i - WINDOW_LENGTH];
-
-//         if (window_sum < min_sum) {
-//             min_sum = window_sum;
-//             min_index = (int)(i - WINDOW_LENGTH + 1);
-//         }
-//     }
-
-//     return min_index;
-// }
-
 int normalise_and_find_noise_window(cir_data_t *cir_data, float mag_norm_buf[])
 {
     size_t i;
@@ -243,79 +125,6 @@ int detect_cir_start(cir_data_t cir_data, float mag_norm_buf[], float *noise_thr
     return find_first_peak(mag_norm_buf, cir_data.length, noise_window_index + WINDOW_LENGTH, threshold);
 }
 
-// size_t detect_peaks(const float *mag,
-//                     size_t len,
-//                     float fp_index,
-//                     float *peaks_out,
-//                     size_t max_peaks,
-//                     float mag_norm_buf[]) {
-//     size_t peak_count = 0;
-//     size_t i;
-//     size_t n;
-//     size_t j;
-//     float *mag_norm = mag_norm_buf;
-
-//     if (mag == NULL || peaks_out == NULL || mag_norm_buf == NULL || len < 3 || max_peaks == 0) {
-//         test_run_info((unsigned char *)"Invalid input to detect_peaks\n");
-//         return 0;
-//     }
-
-//     if (mag != mag_norm_buf) {
-//         if (normalize_array(mag, mag_norm, len) != 0) {
-//             test_run_info((unsigned char *)"Failed to normalize array in detect_peaks\n");
-//             return 0;
-//         }
-//     }
-
-//     i = 1;
-//     n = len - 1;
-//     while (i < n && peak_count < max_peaks) {
-//         float curr = mag_norm[i];
-
-//         if (curr > PEAK_THRESHOLD &&
-//             curr > mag_norm[i - 1] &&
-//             curr > mag_norm[i + 1]) {
-//             peaks_out[peak_count++] = (float)i;
-//             i += SIGNAL_LENGTH;
-//         } else {
-//             i += 1;
-//         }
-//     }
-
-//     for (j = 0; j < peak_count; j++) {
-//         if (fabsf(peaks_out[j] - fp_index) < (SIGNAL_LENGTH / 2.0f)) {
-//             peaks_out[j] = fp_index;
-//         }
-//     }
-
-//     return peak_count;
-// }
-
-float rotate_cir(const float *mag, size_t len, int start_index, float fp_index, float *rotated_out)
-{
-    size_t start;
-    size_t out_index;
-    size_t i;
-
-    if (mag == NULL || rotated_out == NULL || len == 0 || start_index < 0 || (size_t)start_index >= len) {
-        return fp_index;
-    }
-
-    start = (size_t)start_index;
-    out_index = 0;
-
-    for (i = start; i < len; i++) {
-        rotated_out[out_index++] = mag[i];
-    }
-
-    for (i = 0; i < start; i++) {
-        rotated_out[out_index++] = mag[i];
-    }
-
-
-    return fp_index - (float)start_index;
-}
-
 size_t get_relative_time_ticks(uint64_t rx_time,
                                float fp_index,
                                ResponderPeak results[MAX_RESPONDERS],
@@ -365,18 +174,19 @@ tof_result_t tof_and_distance_from_absolute_rx(uint64_t total_time, uint32_t res
     return result;
 }
 
-void interval_peak_detection(const float *mag,
-                             size_t len,
-                             float fp_index,
-                             float peak_threshold,
-                             ResponderPeak results[MAX_RESPONDERS])
+void interval_peak_detection_wrapped(const float *mag,
+                                     size_t len,
+                                     int start_index,
+                                     float fp_index,
+                                     float peak_threshold,
+                                     ResponderPeak results[MAX_RESPONDERS])
 {
     int interval_step;
     int interval_search_len;
     int responder_id = 0;
     int start;
 
-    if (mag == NULL || results == NULL || len == 0) {
+    if (mag == NULL || results == NULL || len == 0 || start_index < 0 || (size_t)start_index >= len) {
         return;
     }
 
@@ -413,19 +223,41 @@ void interval_peak_detection(const float *mag,
         }
 
         for (int j = 1; j < (slice_end - slice_start) - 1; j++) {
-            float curr = mag[slice_start + j];
-            float prev = mag[slice_start + j - 1];
-            float next = mag[slice_start + j + 1];
+            int rotated_idx = slice_start + j;
+            int phys_idx = start_index + rotated_idx;
+            int prev_idx;
+            int next_idx;
+            float curr;
+            float prev;
+            float next;
+
+            if (phys_idx >= (int)len) {
+                phys_idx -= (int)len;
+            }
+
+            prev_idx = phys_idx - 1;
+            if (prev_idx < 0) {
+                prev_idx = (int)len - 1;
+            }
+
+            next_idx = phys_idx + 1;
+            if (next_idx >= (int)len) {
+                next_idx = 0;
+            }
+
+            curr = mag[phys_idx];
+            prev = mag[prev_idx];
+            next = mag[next_idx];
 
             if (curr > peak_threshold && curr > prev && curr > next) {
-                max_index = j;
+                max_index = rotated_idx;
                 found_peak = 1;
                 break;
             }
         }
 
         if (found_peak) {
-            float peak = (float)(slice_start + max_index);
+            float peak = (float)max_index;
 
             if (fabsf(peak - fp_index) < (SIGNAL_LENGTH / 2.0f)) {
                 peak = fp_index;

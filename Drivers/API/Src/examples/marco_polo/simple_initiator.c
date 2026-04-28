@@ -55,7 +55,7 @@ static float cir_mag_buf[DWT_CIR_LEN_MAX];
 extern dwt_config_t config_options;
 extern dwt_txconfig_t txconfig_options;
 
-#define TIMING_TESTS
+// #define TIMING_TESTS
 #if defined(TIMING_TESTS)
 uint32_t t_start;
 uint32_t t_frame_rec;
@@ -353,17 +353,17 @@ int simple_initiator(void)
     //         (unsigned long)((cia_conf >> 20) & 1U));
     // test_run_info((unsigned char *)str_to_print);
 
-    printf("Waiting for button press to start...\n");
+    // printf("Waiting for button press to start...\n");
     
-    //////////////// wait for button press to start the test ////////////////
-    while (!bsp_board_button_state_get(0)) {
-        Sleep(10);
-    }
-    while (bsp_board_button_state_get(0)) {
-        Sleep(10);
-    }
+    // //////////////// wait for button press to start the test ////////////////
+    // while (!bsp_board_button_state_get(0)) {
+    //     Sleep(10);
+    // }
+    // while (bsp_board_button_state_get(0)) {
+    //     Sleep(10);
+    // }
 
-    printf("Button pressed, starting test!\n");
+    // printf("Button pressed, starting test!\n");
 
     #if defined(TIMING_TESTS)
     timing_init();
@@ -372,23 +372,23 @@ int simple_initiator(void)
 
     int counter = 0;
     /* Loop forever, send frame when a button is pressed. */
-    while (counter == 0)
+    while (TRUE)
     {
-        // printf("Starting round %d...\n", counter);
-        // printf("Waiting for button press to start...\n");
-        // /* Wait for Button 1 (index 0) to be pressed. */
-        // while (!bsp_board_button_state_get(0))
-        // {
-        //     /* Small delay to avoid a tight busy loop. */
-        //     Sleep(10);
-        // }
+        printf("Starting round %d...\n", counter);
+        printf("Waiting for button press to start...\n");
+        /* Wait for Button 1 (index 0) to be pressed. */
+        while (!bsp_board_button_state_get(0))
+        {
+            /* Small delay to avoid a tight busy loop. */
+            Sleep(10);
+        }
 
-        // /* Simple debounce: wait until the button is released. */
-        // while (bsp_board_button_state_get(0))
-        // {
-        //     Sleep(10);
-        // }
-        // printf("Button pressed, sending frame!\n");
+        /* Simple debounce: wait until the button is released. */
+        while (bsp_board_button_state_get(0))
+        {
+            Sleep(10);
+        }
+        printf("Button pressed, sending frame!\n");
 
         /////////////// sending frame /////////////
 

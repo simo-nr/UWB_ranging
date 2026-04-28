@@ -45,7 +45,8 @@ typedef struct {
 } ResponderPeak;
 
 
-int detect_cir_start(const float *mag, size_t len, float mag_norm_buf[], float *noise_threshold_out);
+// int detect_cir_start(const float *mag, size_t len, float mag_norm_buf[], float *noise_threshold_out);
+int detect_cir_start(cir_data_t cir_data, float mag_norm_buf[], float *noise_threshold_out);
 
 float rotate_cir(const float *mag, size_t len, int start_index, float fp_index, float *rotated_out);
 

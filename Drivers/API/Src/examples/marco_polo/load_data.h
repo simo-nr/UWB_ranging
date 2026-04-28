@@ -11,6 +11,7 @@ typedef struct {
     int peak_index;
     char fp_index_hex[32];
     double fp_index_samples;
+    float peak_amp;
 } cir_data_t;
 
 cir_data_t load_cir_data(const char *path);

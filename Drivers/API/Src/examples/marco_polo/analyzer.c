@@ -6,6 +6,7 @@
 
 #include <deca_device_api.h>
 
+#include "load_data.h"
 #include "analyzer.h"
 
 extern void test_run_info(unsigned char *data);
@@ -32,54 +33,102 @@ static float max_value(const float *arr, size_t len)
     return max_val;
 }
 
-int normalize_array(const float *mag, float *out, size_t len)
+// int normalize_array(const float *mag, float *out, size_t len)
+// {
+//     size_t i;
+//     float max_mag;
+//     float inv_max_mag;
+
+//     if (mag == NULL || out == NULL || len == 0) {
+//         return -1;
+//     }
+
+//     max_mag = max_value(mag, len);
+//     if (max_mag == 0.0f) {
+//         for (i = 0; i < len; i++) {
+//             out[i] = 0.0f;
+//         }
+//         return 0;
+//     }
+
+//     inv_max_mag = 1.0f / max_mag;
+//     for (i = 0; i < len; i++) {
+//         out[i] = mag[i] * inv_max_mag;
+//     }
+
+//     return 0;
+// }
+
+// int find_noise_window(const float *mag, size_t len)
+// {
+//     size_t i;
+//     float window_sum;
+//     float min_sum;
+//     int min_index;
+
+//     if (mag == NULL || len <= WINDOW_LENGTH) {
+//         return -1;
+//     }
+
+//     window_sum = 0.0f;
+//     for (i = 0; i < WINDOW_LENGTH; i++) {
+//         window_sum += mag[i];
+//     }
+
+//     min_sum = window_sum;
+//     min_index = 0;
+
+//     for (i = WINDOW_LENGTH; i < len; i++) {
+//         window_sum += mag[i];
+//         window_sum -= mag[i - WINDOW_LENGTH];
+
+//         if (window_sum < min_sum) {
+//             min_sum = window_sum;
+//             min_index = (int)(i - WINDOW_LENGTH + 1);
+//         }
+//     }
+
+//     return min_index;
+// }
+
+int normalise_and_find_noise_window(cir_data_t *cir_data, float mag_norm_buf[])
 {
     size_t i;
-    float max_mag;
-    float inv_max_mag;
-
-    if (mag == NULL || out == NULL || len == 0) {
-        return -1;
-    }
-
-    max_mag = max_value(mag, len);
-    if (max_mag == 0.0f) {
-        for (i = 0; i < len; i++) {
-            out[i] = 0.0f;
-        }
-        return 0;
-    }
-
-    inv_max_mag = 1.0f / max_mag;
-    for (i = 0; i < len; i++) {
-        out[i] = mag[i] * inv_max_mag;
-    }
-
-    return 0;
-}
-
-int find_noise_window(const float *mag, size_t len)
-{
-    size_t i;
+    float inv_peak_amp;
     float window_sum;
     float min_sum;
     int min_index;
 
-    if (mag == NULL || len <= WINDOW_LENGTH) {
+    if (cir_data == NULL ||
+        cir_data->mag == NULL ||
+        mag_norm_buf == NULL ||
+        cir_data->length <= WINDOW_LENGTH ||
+        cir_data->peak_amp <= 0.0f) {
         return -1;
     }
 
+    float max = max_value(cir_data->mag, cir_data->length);
+    // inv_peak_amp = 1.0f / cir_data->peak_amp;
+    inv_peak_amp = 1.0f / max;
+
     window_sum = 0.0f;
     for (i = 0; i < WINDOW_LENGTH; i++) {
-        window_sum += mag[i];
+        float norm = cir_data->mag[i] * inv_peak_amp;
+        mag_norm_buf[i] = norm;
+        window_sum += norm;
     }
 
     min_sum = window_sum;
     min_index = 0;
 
-    for (i = WINDOW_LENGTH; i < len; i++) {
-        window_sum += mag[i];
-        window_sum -= mag[i - WINDOW_LENGTH];
+    for (i = WINDOW_LENGTH; i < cir_data->length; i++) {
+        float norm = cir_data->mag[i] * inv_peak_amp;
+        mag_norm_buf[i] = norm;
+
+        // window_sum += cir_data->mag[i];
+        // window_sum -= cir_data->mag[i - WINDOW_LENGTH];
+        window_sum += norm;
+        window_sum -= mag_norm_buf[i - WINDOW_LENGTH];
 
         if (window_sum < min_sum) {
             min_sum = window_sum;
@@ -127,22 +176,24 @@ int get_mean_and_var(const float *arr, size_t len, float *mean_out, float *var_o
     return 0;
 }
 
-int detect_cir_start(const float *mag, size_t len, float mag_norm_buf[], float *noise_threshold_out)
+// int detect_cir_start(const float *mag, size_t len, float mag_norm_buf[], float *noise_threshold_out)
+int detect_cir_start(cir_data_t cir_data, float mag_norm_buf[], float *noise_threshold_out)
 {
     int noise_window_index;
     float noise_mean;
     float noise_var;
     float threshold;
 
-    if (mag == NULL || len == 0 || mag_norm_buf == NULL || noise_threshold_out == NULL) {
+    if (cir_data.mag == NULL || cir_data.length == 0 || mag_norm_buf == NULL || noise_threshold_out == NULL) {
         return -1;
     }
 
-    if (normalize_array(mag, mag_norm_buf, len) != 0) {
-        return -1;
-    }
+    // if (normalize_array(cir_data.mag, mag_norm_buf, cir_data.length) != 0) {
+    //     return -1;
+    // }
 
-    noise_window_index = find_noise_window(mag_norm_buf, len);
+    // noise_window_index = find_noise_window(mag_norm_buf, cir_data.length);
+    noise_window_index = normalise_and_find_noise_window(&cir_data, mag_norm_buf);
     if (noise_window_index < 0) {
         return -1;
     }
@@ -158,7 +209,7 @@ int detect_cir_start(const float *mag, size_t len, float mag_norm_buf[], float *
     threshold = noise_mean + 7.0f * sqrtf(noise_var);
     *noise_threshold_out = threshold;
 
-    return find_first_peak(mag_norm_buf, len, noise_window_index + WINDOW_LENGTH, threshold);
+    return find_first_peak(mag_norm_buf, cir_data.length, noise_window_index + WINDOW_LENGTH, threshold);
 }
 
 size_t detect_peaks(const float *mag,
@@ -180,13 +231,13 @@ size_t detect_peaks(const float *mag,
         return 0;
     }
 
-    if (mag != mag_norm_buf) {
-        if (normalize_array(mag, mag_norm, len) != 0) {
-            test_run_info((unsigned char *)"Failed to normalize array in detect_peaks\n");
-            // free(mag_norm);
-            return 0;
-        }
-    }
+    // if (mag != mag_norm_buf) {
+    //     if (normalize_array(mag, mag_norm, len) != 0) {
+    //         test_run_info((unsigned char *)"Failed to normalize array in detect_peaks\n");
+    //         // free(mag_norm);
+    //         return 0;
+    //     }
+    // }
 
     // i = 0;
     i = 1;
@@ -379,12 +430,12 @@ void interval_peak_detection(const float *mag,
     // print peak threshold
     // printf("Using peak threshold: %f\n", peak_threshold);
 
-    if (mag != mag_norm_buf) {
-        if (normalize_array(mag, mag_norm, len) != 0) {
-            // free(mag_norm);
-            return;
-        }
-    }
+    // if (mag != mag_norm_buf) {
+    //     if (normalize_array(mag, mag_norm, len) != 0) {
+    //         // free(mag_norm);
+    //         return;
+    //     }
+    // }
 
     // interval_step = (int)lround(INTENTIONAL_DELAY_NS);
     interval_step = (int)(INTENTIONAL_DELAY_NS + 0.5f);

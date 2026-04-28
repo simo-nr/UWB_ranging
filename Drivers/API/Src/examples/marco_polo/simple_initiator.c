@@ -21,8 +21,8 @@
 
 #include "deca_private.h"
 #include "helpers.h"
-#include "analyzer.h"
 #include "load_data.h"
+#include "analyzer.h"
 #include <stdint.h>
 
 #if defined(SIMPLE_INITIATOR)
@@ -55,7 +55,7 @@ static float cir_mag_buf[DWT_CIR_LEN_MAX];
 extern dwt_config_t config_options;
 extern dwt_txconfig_t txconfig_options;
 
-// #define TIMING_TESTS
+#define TIMING_TESTS
 #if defined(TIMING_TESTS)
 uint32_t t_start;
 uint32_t t_frame_rec;
@@ -210,7 +210,7 @@ int calculate_distance(cir_data_t data) {
     #endif
 
     float noise_threshold;
-    int start_index = detect_cir_start(data.mag, data.length, mag_norm_buf, &noise_threshold);
+    int start_index = detect_cir_start(data, mag_norm_buf, &noise_threshold);
     if (start_index == -1) {
         // test_run_info((unsigned char *)"No CIR start detected.\n");
         return 0;
@@ -516,6 +516,7 @@ int simple_initiator(void)
             // convert Q10.6 diag.FpIndex to float
             cir_data.fp_index_samples = (float)diag.FpIndex / 64.0f;
             cir_data.rx_minus_tx = (int)(rx_ts - tx_ts);
+            cir_data.peak_amp = (float)diag.peakAmp * 0.25f;
 
             for (int i = 0; i < n_samples; i++) {
                 cir_data.mag[i] = cir_mag_from_buf(&cir_buf[i * ((modes == DWT_CIR_READ_FULL) ? 6 : 4)], modes);

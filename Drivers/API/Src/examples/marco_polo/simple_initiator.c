@@ -231,7 +231,7 @@ int calculate_distance(cir_data_t data) {
 
     // int found[MAX_RESPONDERS];
     ResponderPeak results[MAX_RESPONDERS];
-    interval_peak_detection(rotated_mags, data.length, fp_index, noise_threshold, results, mag_norm_buf);
+    interval_peak_detection(rotated_mags, data.length, fp_index, noise_threshold, results);
 
     #if defined(TIMING_TESTS)
     t_peak_detection = timing_now_cycles();

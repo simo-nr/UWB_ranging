@@ -21,8 +21,8 @@
 
 #include "deca_private.h"
 #include "helpers.h"
-#include "analyzer.h"
 #include "load_data.h"
+#include "analyzer.h"
 #include <stdint.h>
 
 #if defined(SIMPLE_INITIATOR)
@@ -210,7 +210,7 @@ int calculate_distance(cir_data_t data) {
     #endif
 
     float noise_threshold;
-    int start_index = detect_cir_start(data.mag, data.length, mag_norm_buf, &noise_threshold);
+    int start_index = detect_cir_start(data, mag_norm_buf, &noise_threshold);
     if (start_index == -1) {
         // test_run_info((unsigned char *)"No CIR start detected.\n");
         return 0;
@@ -222,7 +222,8 @@ int calculate_distance(cir_data_t data) {
 
     float *rotated_mags = rotated_mags_buf;
 
-    float fp_index = rotate_cir(data.mag, data.length, start_index, (float)data.fp_index_samples, rotated_mags);
+    // float fp_index = rotate_cir(data.mag, data.length, start_index, (float)data.fp_index_samples, rotated_mags);
+    float fp_index = rotate_cir(mag_norm_buf, data.length, start_index, (float)data.fp_index_samples, rotated_mags);
 
     #if defined(TIMING_TESTS)
     t_cir_rotation = timing_now_cycles();
@@ -230,7 +231,7 @@ int calculate_distance(cir_data_t data) {
 
     // int found[MAX_RESPONDERS];
     ResponderPeak results[MAX_RESPONDERS];
-    interval_peak_detection(rotated_mags, data.length, fp_index, noise_threshold, results, mag_norm_buf);
+    interval_peak_detection(rotated_mags, data.length, fp_index, noise_threshold, results);
 
     #if defined(TIMING_TESTS)
     t_peak_detection = timing_now_cycles();
@@ -352,17 +353,17 @@ int simple_initiator(void)
     //         (unsigned long)((cia_conf >> 20) & 1U));
     // test_run_info((unsigned char *)str_to_print);
 
-    printf("Waiting for button press to start...\n");
+    // printf("Waiting for button press to start...\n");
     
-    //////////////// wait for button press to start the test ////////////////
-    while (!bsp_board_button_state_get(0)) {
-        Sleep(10);
-    }
-    while (bsp_board_button_state_get(0)) {
-        Sleep(10);
-    }
+    // //////////////// wait for button press to start the test ////////////////
+    // while (!bsp_board_button_state_get(0)) {
+    //     Sleep(10);
+    // }
+    // while (bsp_board_button_state_get(0)) {
+    //     Sleep(10);
+    // }
 
-    printf("Button pressed, starting test!\n");
+    // printf("Button pressed, starting test!\n");
 
     #if defined(TIMING_TESTS)
     timing_init();
@@ -371,7 +372,7 @@ int simple_initiator(void)
 
     int counter = 0;
     /* Loop forever, send frame when a button is pressed. */
-    while (counter < 1100)
+    while (TRUE)
     {
         printf("Starting round %d...\n", counter);
         printf("Waiting for button press to start...\n");
@@ -516,6 +517,7 @@ int simple_initiator(void)
             // convert Q10.6 diag.FpIndex to float
             cir_data.fp_index_samples = (float)diag.FpIndex / 64.0f;
             cir_data.rx_minus_tx = (int)(rx_ts - tx_ts);
+            cir_data.peak_amp = (float)diag.peakAmp * 0.25f;
 
             for (int i = 0; i < n_samples; i++) {
                 cir_data.mag[i] = cir_mag_from_buf(&cir_buf[i * ((modes == DWT_CIR_READ_FULL) ? 6 : 4)], modes);
@@ -535,7 +537,7 @@ int simple_initiator(void)
             dwt_writesysstatuslo(SYS_STATUS_ALL_RX_ERR);
         }
         // sleep to let the UART finish printing
-        nrf_delay_ms(30);
+        // nrf_delay_ms(30);
         counter++;
     }
     

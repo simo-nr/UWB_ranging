@@ -273,13 +273,13 @@ float rotate_cir(const float *mag, size_t len, int start_index, float fp_index, 
 
 size_t get_relative_time_ticks(uint64_t rx_time,
                                float fp_index,
-                               const ResponderPeak results[MAX_RESPONDERS],
+                               ResponderPeak results[MAX_RESPONDERS],
                                size_t result_count,
                                uint64_t *relative_times_out,
                                size_t max_out)
 {
     size_t i;
-    size_t out_count = 0;
+    // size_t out_count = 0;
 
     if (results == NULL || relative_times_out == NULL) {
         return 0;
@@ -287,8 +287,10 @@ size_t get_relative_time_ticks(uint64_t rx_time,
 
     // count = (peak_count < max_out) ? peak_count : max_out;
 
-    for (i = 0; i < result_count && out_count < max_out; i++) {
+    for (i = 0; i < MAX_RESPONDERS; i++) {
         if (!results[i].valid) {
+            // relative_times_out[out_count++] = 0;
+            // do nothing, the time and distance for this responder will be 0 in the results
             continue;
         }
 
@@ -297,10 +299,11 @@ size_t get_relative_time_ticks(uint64_t rx_time,
         if (relative_time < 0.0) {
             relative_time = 0.0;
         }
-        relative_times_out[out_count++] = (uint64_t)relative_time;
+        // relative_times_out[out_count++] = (uint64_t)relative_time;
+        results[i].time = (int)relative_time;
     }
 
-    return out_count;
+    return 0;
 }
 
 tof_result_t tof_and_distance_from_absolute_rx(uint64_t total_time, uint32_t responder_id)
@@ -351,7 +354,7 @@ void interval_peak_detection(const float *mag,
                              size_t len,
                              float fp_index,
                              float peak_threshold,
-                             int *found,
+                            //  int *found,
                              ResponderPeak results[MAX_RESPONDERS],
                              float mag_norm_buf[])
 {
@@ -361,7 +364,7 @@ void interval_peak_detection(const float *mag,
     int start;
     float *mag_norm = mag_norm_buf;
 
-    if (mag == NULL || found == NULL || results == NULL || mag_norm_buf == NULL || len == 0) {
+    if (mag == NULL || results == NULL || mag_norm_buf == NULL || len == 0) {
         return;
     }
 
@@ -369,6 +372,8 @@ void interval_peak_detection(const float *mag,
         results[i].responder_id = i;
         results[i].peak = -1.0f;
         results[i].valid = 0;
+        results[i].time = 0;
+        results[i].distance = 0;
     }
 
     // print peak threshold
@@ -430,7 +435,7 @@ void interval_peak_detection(const float *mag,
                 peak = fp_index;
             }
 
-            found[responder_id] = 1;
+            // found[responder_id] = 1;
             results[responder_id].peak = peak;
             results[responder_id].valid = 1;
         }

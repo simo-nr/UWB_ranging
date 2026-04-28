@@ -37,8 +37,10 @@ extern void test_run_info(unsigned char *data);
 #define RNG_DELAY_MS 20 // 1000
 
 /* Default antenna delay values for 64 MHz PRF. See NOTE 1 below. */
-#define TX_ANT_DLY (16385 + 74)
-#define RX_ANT_DLY (16385 + 74)
+// #define TX_ANT_DLY (16385 + 74 - 94 + 1)
+// #define RX_ANT_DLY (16385 + 74 - 94 + 1)
+#define TX_ANT_DLY 16366
+#define RX_ANT_DLY 16366
 
 /* Frames used in the ranging process. See NOTE 2 below. */
 static uint8_t rx_poll_msg[] = { 0x41, 0x88, 0, 0xCA, 0xDE, 'W', 'A', 'V', 'E', 0x21, 0, 0 };

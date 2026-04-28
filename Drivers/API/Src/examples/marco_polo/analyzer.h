@@ -40,6 +40,8 @@ typedef struct {
     int responder_id;
     float peak;
     int valid;
+    int time;
+    double distance;
 } ResponderPeak;
 
 
@@ -56,7 +58,7 @@ size_t detect_peaks(const float *mag,
                     
 size_t get_relative_time_ticks(uint64_t rx_time,
                                float fp_index,
-                               const ResponderPeak results[MAX_RESPONDERS],
+                               ResponderPeak results[MAX_RESPONDERS],
                                size_t result_count,
                                uint64_t *relative_times_out,
                                size_t max_out);
@@ -70,6 +72,6 @@ void interval_peak_detection(const float *mag,
                              size_t len,
                              float fp_index,
                              float peak_threshold,
-                             int *found,
+                            //  int *found,
                              ResponderPeak results[MAX_RESPONDERS],
                              float mag_norm_buf[]);

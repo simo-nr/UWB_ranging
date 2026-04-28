@@ -62,9 +62,6 @@
  <Watch4>
   <Watches active="0" update="Never"/>
  </Watch4>
- <Files>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="92" useTextEdit="1" path="Source/main.c" left="0" top="70" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="71" useTextEdit="1" path="sdk/modules/nrfx/mdk/ses_startup_nrf52840.s" left="0" top="49" codecName="Default"/>
- </Files>
- <EMStudioWindow activeProject="dw3000_api" fileDialogDefaultFilter="*.c" autoConnectTarget="J-Link" buildConfiguration="Debug" sessionSettings="" debugSearchFileMap="" fileDialogInitialDirectory="/Users/simonrolly/Documents/uni/master/thesis/DW3_QM33_SDK_1/Drivers/API/Src/examples/marco_polo" debugSearchPath="" autoConnectCapabilities="3711"/>
+ <Files/>
+ <EMStudioWindow activeProject="dw3000_api" fileDialogDefaultFilter="*.c" autoConnectTarget="J-Link" buildConfiguration="Debug" sessionSettings="" debugSearchFileMap="" fileDialogInitialDirectory="/Users/simonrolly/Documents/uni/master/thesis/DW3_QM33_SDK_1/Drivers/API/Src/examples/marco_polo" debugSearchPath="" autoConnectCapabilities="3199"/>
 </session>

@@ -35,6 +35,8 @@ extern void test_run_info(unsigned char *data);
 #define RESP_MSG_DELAY_UUS_LEN 4
 #define RESP_TX_DELAY_UUS 1500
 
+#define RESP_LED_FLASH_MS 30
+
 // #define DELTA_I_DTU 0
 // #define DELTA_I_DTU 1024  // ≈16 ns
 // #define DELTA_I_DTU 8192 // ≈128 ns
@@ -45,8 +47,22 @@ extern void test_run_info(unsigned char *data);
 #define LEVEL3_TRIM_DELTA -10
 #define LEVEL3_TDET_US 560
 
-#define TX_ANT_DLY 16385
-#define RX_ANT_DLY 16385
+#if DEVICE_INDEX == 0
+    #define TX_ANT_DLY 16366
+    #define RX_ANT_DLY 16366
+#elif DEVICE_INDEX == 1
+    #define TX_ANT_DLY 16372
+    #define RX_ANT_DLY 16372
+#elif DEVICE_INDEX == 2
+    #define TX_ANT_DLY 16366
+    #define RX_ANT_DLY 16366
+#elif DEVICE_INDEX == 3
+    #define TX_ANT_DLY 16370
+    #define RX_ANT_DLY 16370
+#else
+    #error "Invalid DEVICE_INDEX"
+#endif
+
 
 static uint8_t tx_msg[] = {
     0xC5, 0, 'R', 'E', 'S', 'P', 'O', 'N', 'S', 'E',
@@ -127,8 +143,7 @@ int sending_timestamps(void)
         while (1) { };
     }
 
-    /* Enabling LEDs here for debug so that for each RX-enable the D2 LED will flash on DW3000 red eval-shield boards. */
-    dwt_setleds(DWT_LEDS_ENABLE | DWT_LEDS_INIT_BLINK);
+    dwt_setleds(DWT_LEDS_DISABLE);
 
     /* Configure DW IC. */
     /* if the dwt_configure returns DWT_ERROR either the PLL or RX calibration has failed the host should reset the device */
@@ -141,10 +156,10 @@ int sending_timestamps(void)
     /* Configure the TX spectrum parameters (power PG delay and PG Count) */
     dwt_configuretxrf(&txconfig_options);
 
-    uint32_t dev_id = dwt_readdevid();
-    sprintf(str_to_print, "Device ID: 0x%08lX", (unsigned long)dev_id); 
-    // 9: 0xDECA0302
-    test_run_info((unsigned char *)str_to_print);
+    // uint32_t dev_id = dwt_readdevid();
+    // sprintf(str_to_print, "Device ID: 0x%08lX", (unsigned long)dev_id); 
+    // // 9: 0xDECA0302
+    // test_run_info((unsigned char *)str_to_print);
 
     /* Loop forever receiving frames. */
     while (TRUE)
@@ -239,6 +254,11 @@ int sending_timestamps(void)
             {
                 waitforsysstatus(NULL, NULL, DWT_INT_TXFRS_BIT_MASK, 0);
                 dwt_writesysstatuslo(DWT_INT_TXFRS_BIT_MASK);
+
+                /* Flash only after the response transmission has completed. */
+                dwt_setleds(DWT_LEDS_ENABLE | DWT_LEDS_INIT_BLINK);
+                nrf_delay_ms(RESP_LED_FLASH_MS);
+                dwt_setleds(DWT_LEDS_DISABLE);
                 
                 actual_tx_ts = get_tx_timestamp_u64();
                 dwt_setxtaltrim(trim_cfo);

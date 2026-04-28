@@ -222,7 +222,8 @@ int calculate_distance(cir_data_t data) {
 
     float *rotated_mags = rotated_mags_buf;
 
-    float fp_index = rotate_cir(data.mag, data.length, start_index, (float)data.fp_index_samples, rotated_mags);
+    // float fp_index = rotate_cir(data.mag, data.length, start_index, (float)data.fp_index_samples, rotated_mags);
+    float fp_index = rotate_cir(mag_norm_buf, data.length, start_index, (float)data.fp_index_samples, rotated_mags);
 
     #if defined(TIMING_TESTS)
     t_cir_rotation = timing_now_cycles();
@@ -371,23 +372,23 @@ int simple_initiator(void)
 
     int counter = 0;
     /* Loop forever, send frame when a button is pressed. */
-    while (counter < 1100)
+    while (counter == 0)
     {
-        printf("Starting round %d...\n", counter);
-        printf("Waiting for button press to start...\n");
-        /* Wait for Button 1 (index 0) to be pressed. */
-        while (!bsp_board_button_state_get(0))
-        {
-            /* Small delay to avoid a tight busy loop. */
-            Sleep(10);
-        }
+        // printf("Starting round %d...\n", counter);
+        // printf("Waiting for button press to start...\n");
+        // /* Wait for Button 1 (index 0) to be pressed. */
+        // while (!bsp_board_button_state_get(0))
+        // {
+        //     /* Small delay to avoid a tight busy loop. */
+        //     Sleep(10);
+        // }
 
-        /* Simple debounce: wait until the button is released. */
-        while (bsp_board_button_state_get(0))
-        {
-            Sleep(10);
-        }
-        printf("Button pressed, sending frame!\n");
+        // /* Simple debounce: wait until the button is released. */
+        // while (bsp_board_button_state_get(0))
+        // {
+        //     Sleep(10);
+        // }
+        // printf("Button pressed, sending frame!\n");
 
         /////////////// sending frame /////////////
 
@@ -536,7 +537,7 @@ int simple_initiator(void)
             dwt_writesysstatuslo(SYS_STATUS_ALL_RX_ERR);
         }
         // sleep to let the UART finish printing
-        nrf_delay_ms(30);
+        // nrf_delay_ms(30);
         counter++;
     }
     

@@ -397,25 +397,10 @@ int simple_initiator(void)
          * API function to access it.*/
         waitforsysstatus(NULL, NULL, DWT_INT_TXFRS_BIT_MASK, 0);
         
-        // /* Read TX timestamp here */
-        // uint8_t ts[5];
-        // uint64_t tx_time = 0;
-
-        // dwt_readtxtimestamp(ts);
-
-        // tx_time = ((uint64_t)ts[0]) |
-        //         ((uint64_t)ts[1] << 8) |
-        //         ((uint64_t)ts[2] << 16) |
-        //         ((uint64_t)ts[3] << 24) |
-        //         ((uint64_t)ts[4] << 32);
-
         uint64_t tx_ts = get_tx_timestamp_u64();
 
         /* Clear TX frame sent event. */
         dwt_writesysstatuslo(DWT_INT_TXFRS_BIT_MASK);
-
-        // sprintf(str_to_print,"INIT Frame Sent %d\r\n", counter);
-        // test_run_info((unsigned char *)str_to_print);
 
         /* TESTING BREAKPOINT LOCATION #1 */
 
@@ -440,9 +425,6 @@ int simple_initiator(void)
         {
             uint64_t rx_ts = get_rx_timestamp_u64();
             int64_t tx_rx_diff = (int64_t)rx_ts - (int64_t)tx_ts;
-
-            // sprintf(str_to_print, "RX_TS - TX_TS = %lld dtu\n", (long long)tx_rx_diff);
-            // test_run_info((unsigned char *)str_to_print);
 
             dwt_cirdiags_t diag;
             if (dwt_readdiagnostics_acc(&diag, DWT_ACC_IDX_IP_M) == DWT_SUCCESS)
@@ -476,7 +458,6 @@ int simple_initiator(void)
             /* Ipatov data */
             int n_samples = n_samples_ipatov;
             dwt_readcir((uint32_t*)cir_buf, acc_idx, 0, n_samples, modes);
-            // find_and_print_cir_peak_from_buffer(cir_buf, n_samples, modes);
             
             #if defined(TIMING_TESTS)
             t_cir_read = timing_now_cycles();
@@ -498,11 +479,11 @@ int simple_initiator(void)
             print_cir(cir_buf, n_samples, modes);
             #endif
 
-            // make cir_data_t struct and calculate distance
+            /* make cir_data_t struct and calculate distance */
             cir_data_t cir_data;
             cir_data.mag = cir_mag_buf;
             cir_data.length = n_samples;
-            // convert Q10.6 diag.FpIndex to float
+            /* convert Q10.6 diag.FpIndex to float */
             cir_data.fp_index_samples = (float)diag.FpIndex / 64.0f;
             cir_data.rx_minus_tx = (int)(rx_ts - tx_ts);
             cir_data.peak_amp = (float)diag.peakAmp * 0.25f;
@@ -524,7 +505,7 @@ int simple_initiator(void)
             /* Clear RX error events in the DW IC status register. */
             dwt_writesysstatuslo(SYS_STATUS_ALL_RX_ERR);
         }
-        // sleep to let the UART finish printing
+        /* sleep to let the UART finish printing */
         // nrf_delay_ms(30);
         counter++;
     }
@@ -541,7 +522,6 @@ int simple_initiator(void)
     time_to_process_cir = (t_cir_processed - t_cir_read);
 
     start_detected = (t_cir_start_detect - t_start_processing);
-    // cir_rotation = (t_cir_rotation - t_cir_start_detect);
     peak_detection = (t_peak_detection - t_cir_start_detect);
     relative_time_calc = (t_relative_time - t_peak_detection);
     distance_calc = (t_distance_calc - t_relative_time);

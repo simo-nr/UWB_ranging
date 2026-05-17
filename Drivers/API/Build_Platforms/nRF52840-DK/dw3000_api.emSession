@@ -1,7 +1,9 @@
 <!DOCTYPE CrossStudio_Session_File>
 <session>
  <Bookmarks/>
- <Breakpoints groups="Breakpoints" active_group="Breakpoints"/>
+ <Breakpoints groups="Breakpoints" active_group="Breakpoints">
+  <BreakpointListItem trigger="" line="455" counter="0" hardwareBreakpoint="" isFunctionBreakpoint="false" action="" expression="" stopAll="false" group="Breakpoints" type="Breakpoint" state="2" filename="../../Src/examples/marco_polo/simple_initiator.c" useHWbreakpoint="false"/>
+ </Breakpoints>
  <ExecutionProfileWindow/>
  <FrameBuffer>
   <FrameBufferWindow width="0" keepAspectRatio="0" zoomToFitWindow="0" showGrid="0" addressSpace="" format="0" height="0" autoEvaluate="0" scaleFactor="1" refreshPeriod="0" name="dw3000_api_Debug" addressText="" accessByDisplayWidth="0"/>
@@ -28,6 +30,7 @@
   <ProjectSessionItem path="dw3000_api;dw3000_api;Source;examples;examples_info"/>
   <ProjectSessionItem path="dw3000_api;dw3000_api;Source;platform"/>
   <ProjectSessionItem path="dw3000_api;dw3000_api;Source;SDK"/>
+  <ProjectSessionItem path="dw3000_api;dw3000_api;Source;SDK;nRF_Drivers"/>
   <ProjectSessionItem path="dw3000_api;dw3000_api;Source;Shared"/>
   <ProjectSessionItem path="dw3000_api;dw3000_api;Source;Shared;dw3000"/>
   <ProjectSessionItem path="dw3000_api;dw3000_api;System"/>
@@ -62,6 +65,15 @@
  <Watch4>
   <Watches active="0" update="Never"/>
  </Watch4>
- <Files/>
- <EMStudioWindow activeProject="dw3000_api" fileDialogDefaultFilter="*.c" autoConnectTarget="J-Link" buildConfiguration="Debug" sessionSettings="" debugSearchFileMap="" fileDialogInitialDirectory="/Users/simonrolly/Documents/uni/master/thesis/DW3_QM33_SDK_1/Drivers/API/Src/examples/marco_polo" debugSearchPath="" autoConnectCapabilities="3199"/>
+ <Files>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="344" useTextEdit="1" path="Source/platform/deca_spi.c" left="0" selected="1" top="317" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="454" useTextEdit="1" path="../../Src/examples/marco_polo/simple_initiator.c" left="0" top="433" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="92" useTextEdit="1" path="Source/main.c" left="0" top="70" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="684" useTextEdit="1" path="../../Shared/dwt_uwb_driver/deca_compat.c" left="0" top="661" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="495" useTextEdit="1" path="../../Shared/dwt_uwb_driver/dw3000/dw3000_device.c" left="0" top="473" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="636" useTextEdit="1" path="sdk/modules/nrfx/hal/nrf_spim.h" left="0" top="612" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="428" useTextEdit="1" path="sdk/modules/nrfx/drivers/src/nrfx_gpiote.c" left="0" top="401" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="665" useTextEdit="1" path="sdk/modules/nrfx/hal/nrf_gpio.h" left="0" top="644" codecName="Default"/>
+ </Files>
+ <EMStudioWindow activeProject="dw3000_api" fileDialogDefaultFilter="*.c" autoConnectTarget="J-Link" buildConfiguration="Debug" sessionSettings="" debugSearchFileMap="" fileDialogInitialDirectory="/Users/simonrolly/Documents/uni/master/thesis/DW3_QM33_SDK_1/Drivers/API/Src/examples/marco_polo" debugSearchPath="" autoConnectCapabilities="3711"/>
 </session>

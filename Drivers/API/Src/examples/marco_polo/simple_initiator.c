@@ -319,23 +319,7 @@ int simple_initiator(void)
 
     test_run_info((unsigned char *)"DW3000 initialized and configured. Starting main loop.\r\n");
 
-    // // test print, hoping for MINDIAG = 0 
-    // uint32_t cia_conf = read_u32_le_reg(0x0E, 0x00);
-    // sprintf(str_to_print,
-    //         "CIA_CONF=0x%08lX  MINDIAG=%lu\r\n",
-    //         (unsigned long)cia_conf,
-    //         (unsigned long)((cia_conf >> 20) & 1U));
-    // test_run_info((unsigned char *)str_to_print);
-
     dwt_configciadiag(DW_CIA_DIAG_LOG_ALL);
-
-    // // test print
-    // cia_conf = read_u32_le_reg(0x0E, 0x00);
-    // sprintf(str_to_print,
-    //         "CIA_CONF=0x%08lX  MINDIAG=%lu\r\n",
-    //         (unsigned long)cia_conf,
-    //         (unsigned long)((cia_conf >> 20) & 1U));
-    // test_run_info((unsigned char *)str_to_print);
 
     printf("Waiting for button press to start...\n");
     
@@ -434,18 +418,8 @@ int simple_initiator(void)
             int64_t tx_rx_diff = (int64_t)rx_ts - (int64_t)tx_ts;
 
             dwt_cirdiags_t diag;
-            if (dwt_readdiagnostics_acc(&diag, DWT_ACC_IDX_IP_M) == DWT_SUCCESS)
-            {
-                // sprintf(str_to_print,
-                //         "API diag: peakIndex=%u peakAmp=%lu FpIndex=0x%04X (%u.%u/64) accumCount=%u\r\n",
-                //         diag.peakIndex,
-                //         (unsigned long)diag.peakAmp,
-                //         diag.FpIndex,
-                //         diag.FpIndex >> 6,
-                //         diag.FpIndex & 0x3F,
-                //         diag.accumCount);
-                // test_run_info((unsigned char *)str_to_print);
-            }
+            dwt_readdiagnostics_acc(&diag, DWT_ACC_IDX_IP_M);
+            
             #if defined(TIMING_TESTS)
             t_diag_read = timing_now_cycles();
             #endif

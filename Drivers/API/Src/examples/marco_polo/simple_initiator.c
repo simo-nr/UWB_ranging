@@ -263,8 +263,7 @@ int simple_initiator(void)
 {
     /* Hold copy of status register state here for reference so that it can be examined at a debug breakpoint. */
     uint32_t status_reg;
-    // /* Hold copy of frame length of frame received (if good) so that it can be examined at a debug breakpoint. */
-    // uint16_t frame_len;
+    /* Hold copy of frame length of frame received (if good) so that it can be examined at a debug breakpoint. */
 
     /* Print application name on the console. */
     test_run_info((unsigned char *)APP_NAME);

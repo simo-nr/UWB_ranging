@@ -102,8 +102,8 @@ extern "C"
 // #define MY_TEST_2
 // #define TX_AND_READ_CIR
 
-#define SIMPLE_INITIATOR
-// #define SIMPLE_RESPONDER
+// #define SIMPLE_INITIATOR
+#define SIMPLE_RESPONDER
 
 // #define READING_DATA
 // #define SENDING_TIMESTAMPS

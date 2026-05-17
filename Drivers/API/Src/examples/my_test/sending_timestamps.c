@@ -27,7 +27,7 @@ extern void test_run_info(unsigned char *data);
 /* Example application name */
 #define APP_NAME "SENDING TIMESTAMPS v1.0"
 
-// sending stuff
+/* sending stuff */
 #define RESP_MSG_COMMON_LEN 10
 #define RESP_MSG_POLL_RX_TS_IDX RESP_MSG_COMMON_LEN
 #define RESP_MSG_RESP_TX_TS_IDX (RESP_MSG_POLL_RX_TS_IDX + 5)
@@ -65,10 +65,7 @@ extern void test_run_info(unsigned char *data);
 
 
 static uint8_t tx_msg[] = {
-    0xC5, 0, 'R', 'E', 'S', 'P', 'O', 'N', 'S', 'E',
-    0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0,
-    0, 0, 0, 0
+    0xC5, 0, 'R'
 };
 #define FRAME_LENGTH (sizeof(tx_msg) + FCS_LEN) // The real length that is going to be transmitted
 

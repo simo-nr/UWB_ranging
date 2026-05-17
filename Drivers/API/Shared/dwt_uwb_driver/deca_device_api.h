@@ -1142,7 +1142,8 @@ extern "C"
 #define DWT_CIR_VALUE_NO_SIGN_18BIT_MASK 0x0003FFFFUL
 #define DWT_CIR_SIGN_24BIT_EXTEND_32BIT_MASK 0xFFFC0000UL
 /*! Read out by chunks of up to 16 complex samples i.e 16*(24bits+24bits) = 16*48 bytes */
-#define CHUNK_CIR_NB_SAMP 16U
+// #define CHUNK_CIR_NB_SAMP 16U
+#define CHUNK_CIR_NB_SAMP 32U
 
 /*! @name This defines the CIR read mode (complex sample size)
  *

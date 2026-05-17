@@ -55,7 +55,9 @@ static float cir_mag_buf[DWT_CIR_LEN_MAX];
 extern dwt_config_t config_options;
 extern dwt_txconfig_t txconfig_options;
 
-#define TIMING_TESTS
+// #define TIMING_TESTS
+// #define FULL_TIMING
+// #define LOOP_TIMING
 #if defined(TIMING_TESTS)
 uint32_t t_start;
 uint32_t t_frame_rec;
@@ -80,13 +82,11 @@ uint32_t time_to_process_cir_us;
 
 uint32_t t_start_processing;
 uint32_t t_cir_start_detect;
-// uint32_t t_cir_rotation;
 uint32_t t_peak_detection;
 uint32_t t_relative_time;
 uint32_t t_distance_calc;
 
 uint32_t start_detected;
-// uint32_t cir_rotation;
 uint32_t peak_detection;
 uint32_t relative_time_calc;
 uint32_t distance_calc;
@@ -158,7 +158,6 @@ static void print_cir(uint8_t *buf, int n_samples, dwt_cir_read_mode_e mode)
             hi_re = *ptr++;
             lo_img = *ptr++;
             hi_img = *ptr++;
-            // sprintf(str_to_print, "%ld,%ld,", "%d,%d,", (int16_t)(hi_re<<8 | lo_re), (int16_t)(hi_img<<8 | lo_img));
             sprintf(str_to_print, "%ld,%ld,", (int16_t)(hi_re<<8 | lo_re), (int16_t)(hi_img<<8 | lo_img));
             test_run_info((unsigned char *)str_to_print);
             nrf_delay_ms(1); // Delay to allow the UART to keep up with the data
@@ -205,7 +204,7 @@ static float cir_mag_from_buf(const uint8_t *ptr, dwt_cir_read_mode_e mode)
 }
 
 int calculate_distance(cir_data_t data) {
-    #if defined(TIMING_TESTS)
+    #if defined(TIMING_TESTS) && defined(FULL_TIMING)
     t_start_processing = timing_now_cycles();
     #endif
 
@@ -216,13 +215,9 @@ int calculate_distance(cir_data_t data) {
         return 0;
     }
 
-    #if defined(TIMING_TESTS)
+    #if defined(TIMING_TESTS) && defined(FULL_TIMING)
     t_cir_start_detect = timing_now_cycles();
     #endif
-
-    // #if defined(TIMING_TESTS)
-    // t_cir_rotation = timing_now_cycles();
-    // #endif
 
     float fp_index = (float)data.fp_index_samples - (float)start_index;
     if (fp_index < 0.0f) {
@@ -232,14 +227,14 @@ int calculate_distance(cir_data_t data) {
     ResponderPeak results[MAX_RESPONDERS];
     interval_peak_detection_wrapped(mag_norm_buf, data.length, start_index, fp_index, noise_threshold, results);
 
-    #if defined(TIMING_TESTS)
+    #if defined(TIMING_TESTS) && defined(FULL_TIMING)
     t_peak_detection = timing_now_cycles();
     #endif
 
     uint64_t times[MAX_RESPONDERS];
     size_t time_count = get_relative_time_ticks((uint64_t)data.rx_minus_tx, fp_index, results, MAX_RESPONDERS, times, MAX_RESPONDERS);
 
-    #if defined(TIMING_TESTS)
+    #if defined(TIMING_TESTS) && defined(FULL_TIMING)
     t_relative_time = timing_now_cycles();
     #endif
 
@@ -253,7 +248,7 @@ int calculate_distance(cir_data_t data) {
     }
     printf("]\n");
 
-    #if defined(TIMING_TESTS)
+    #if defined(TIMING_TESTS) && defined(FULL_TIMING)
     t_distance_calc = timing_now_cycles();
     #endif
     
@@ -353,32 +348,43 @@ int simple_initiator(void)
 
     printf("Button pressed, starting test!\n");
 
-    #if defined(TIMING_TESTS)
-    timing_init();
-    t_start = timing_now_cycles();
-    #endif
-
     int counter = 0;
     /* Loop forever, send frame when a button is pressed. */
-    while (counter == 0)
+    while (counter < 1100)
     {
-        // printf("Starting round %d...\n", counter);
-        // printf("Waiting for button press to start...\n");
-        // /* Wait for Button 1 (index 0) to be pressed. */
-        // while (!bsp_board_button_state_get(0))
-        // {
-        //     /* Small delay to avoid a tight busy loop. */
-        //     Sleep(10);
-        // }
+        printf("Starting round %d...\n", counter);
+        printf("Waiting for button press to start round...\n");
+        /* Wait for Button 1 (index 0) to be pressed. */
+        while (!bsp_board_button_state_get(0))
+        {
+            /* Small delay to avoid a tight busy loop. */
+            Sleep(10);
+        }
 
-        // /* Simple debounce: wait until the button is released. */
-        // while (bsp_board_button_state_get(0))
-        // {
-        //     Sleep(10);
-        // }
-        // printf("Button pressed, sending frame!\n");
+        /* Simple debounce: wait until the button is released. */
+        while (bsp_board_button_state_get(0))
+        {
+            Sleep(10);
+        }
+        printf("Button pressed, sending frame!\n");
 
-        /////////////// sending frame /////////////
+        #if defined(TIMING_TESTS)
+        timing_init();
+        t_start = timing_now_cycles();
+        t_frame_rec = 0;
+        t_diag_read = 0;
+        t_cir_read = 0;
+        t_cir_processed = 0;
+        t_end = 0;
+
+        t_start_processing = 0;
+        t_cir_start_detect = 0;
+        t_peak_detection = 0;
+        t_relative_time = 0;
+        t_distance_calc = 0;
+        #endif
+
+        /////////////// sending frame ///////////////
 
         /* Write frame data to DW IC and prepare transmission. See NOTE 3 below.*/
         dwt_writetxdata(FRAME_LENGTH - FCS_LEN, tx_msg, 0); /* Zero offset in TX buffer. */
@@ -463,7 +469,7 @@ int simple_initiator(void)
             t_cir_read = timing_now_cycles();
             #endif
 
-            // #define PRINT_CIR
+            #define PRINT_CIR
             #if defined(PRINT_CIR)
             sprintf(str_to_print, "RX_TS - TX_TS = %lld dtu\n", (long long)tx_rx_diff);
             test_run_info((unsigned char *)str_to_print);
@@ -505,77 +511,80 @@ int simple_initiator(void)
             /* Clear RX error events in the DW IC status register. */
             dwt_writesysstatuslo(SYS_STATUS_ALL_RX_ERR);
         }
-        /* sleep to let the UART finish printing */
-        // nrf_delay_ms(30);
-        counter++;
-    }
-    
-    #if defined(TIMING_TESTS)
-    t_end = timing_now_cycles();
-    total_elapsed_cycles = t_end - t_start;
-    total_elapsed_us = cycles_to_us(total_elapsed_cycles);
-    total_elapsed_ms = cycles_to_ms(total_elapsed_cycles);
+        #if defined(TIMING_TESTS)
+        t_end = timing_now_cycles();
+        total_elapsed_cycles = t_end - t_start;
+        total_elapsed_us = cycles_to_us(total_elapsed_cycles);
+        total_elapsed_ms = cycles_to_ms(total_elapsed_cycles);
 
-    time_to_read_frame = (t_frame_rec - t_start);
-    time_to_read_diag = (t_diag_read - t_frame_rec);
-    time_to_read_cir = (t_cir_read - t_diag_read);
-    time_to_process_cir = (t_cir_processed - t_cir_read);
+        time_to_read_frame = (t_frame_rec - t_start);
+        time_to_read_diag = (t_diag_read - t_frame_rec);
+        time_to_read_cir = (t_cir_read - t_diag_read);
+        time_to_process_cir = (t_cir_processed - t_cir_read);
 
-    start_detected = (t_cir_start_detect - t_start_processing);
-    peak_detection = (t_peak_detection - t_cir_start_detect);
-    relative_time_calc = (t_relative_time - t_peak_detection);
-    distance_calc = (t_distance_calc - t_relative_time);
-
-    uint32_t read_frame_pct_x100 = percent_x100(time_to_read_frame, total_elapsed_cycles);
-    uint32_t read_diag_pct_x100 = percent_x100(time_to_read_diag, total_elapsed_cycles);
-    uint32_t read_cir_pct_x100 = percent_x100(time_to_read_cir, total_elapsed_cycles);
-    uint32_t process_cir_pct_x100 = percent_x100(time_to_process_cir, total_elapsed_cycles);
-
-    uint32_t processing_total_cycles = t_distance_calc - t_start_processing;
-    uint32_t start_detected_pct_x100 = percent_x100(start_detected, processing_total_cycles);
-    uint32_t peak_detection_pct_x100 = percent_x100(peak_detection, processing_total_cycles);
-    uint32_t relative_time_pct_x100 = percent_x100(relative_time_calc, processing_total_cycles);
-    uint32_t distance_calc_pct_x100 = percent_x100(distance_calc, processing_total_cycles);
-
-    sprintf(str_to_print,
-            "Total execution time: %lu cycles (%lu us, %lu ms)\r\n",
-            (unsigned long)total_elapsed_cycles,
-            (unsigned long)total_elapsed_us,
-            (unsigned long)total_elapsed_ms);
-    test_run_info((unsigned char *)str_to_print);
+        uint32_t read_frame_pct_x100 = percent_x100(time_to_read_frame, total_elapsed_cycles);
+        uint32_t read_diag_pct_x100 = percent_x100(time_to_read_diag, total_elapsed_cycles);
+        uint32_t read_cir_pct_x100 = percent_x100(time_to_read_cir, total_elapsed_cycles);
+        uint32_t process_cir_pct_x100 = percent_x100(time_to_process_cir, total_elapsed_cycles);
 
         sprintf(str_to_print,
-            "Processing split (inside CIR processing): Start detect=%lu cycles (%lu.%02lu%%), Peak=%lu cycles (%lu.%02lu%%), Relative time=%lu cycles (%lu.%02lu%%), Distance=%lu cycles (%lu.%02lu%%)\r\n",
-            (unsigned long)start_detected,
-            (unsigned long)(start_detected_pct_x100 / 100U),
-            (unsigned long)(start_detected_pct_x100 % 100U),
-            (unsigned long)peak_detection,
-            (unsigned long)(peak_detection_pct_x100 / 100U),
-            (unsigned long)(peak_detection_pct_x100 % 100U),
-            (unsigned long)relative_time_calc,
-            (unsigned long)(relative_time_pct_x100 / 100U),
-            (unsigned long)(relative_time_pct_x100 % 100U),
-            (unsigned long)distance_calc,
-            (unsigned long)(distance_calc_pct_x100 / 100U),
-            (unsigned long)(distance_calc_pct_x100 % 100U));
-    test_run_info((unsigned char *)str_to_print);
+                "Loop %d total execution time: %lu cycles (%lu us, %lu ms)\r\n",
+                counter,
+                (unsigned long)total_elapsed_cycles,
+                (unsigned long)total_elapsed_us,
+                (unsigned long)total_elapsed_ms);
+        test_run_info((unsigned char *)str_to_print);
 
-    sprintf(str_to_print,
-            "Main loop split (of total runtime): Read frame=%lu cycles (%lu.%02lu%%), Read diag=%lu cycles (%lu.%02lu%%), Read CIR=%lu cycles (%lu.%02lu%%), Process CIR=%lu cycles (%lu.%02lu%%)\r\n",
-            (unsigned long)time_to_read_frame,
-            (unsigned long)(read_frame_pct_x100 / 100U),
-            (unsigned long)(read_frame_pct_x100 % 100U),
-            (unsigned long)time_to_read_diag,
-            (unsigned long)(read_diag_pct_x100 / 100U),
-            (unsigned long)(read_diag_pct_x100 % 100U),
-            (unsigned long)time_to_read_cir,
-            (unsigned long)(read_cir_pct_x100 / 100U),
-            (unsigned long)(read_cir_pct_x100 % 100U),
-            (unsigned long)time_to_process_cir,
-            (unsigned long)(process_cir_pct_x100 / 100U),
-            (unsigned long)(process_cir_pct_x100 % 100U));
-    test_run_info((unsigned char *)str_to_print);
-    #endif
+        #if defined(FULL_TIMING)
+        start_detected = (t_cir_start_detect - t_start_processing);
+        peak_detection = (t_peak_detection - t_cir_start_detect);
+        relative_time_calc = (t_relative_time - t_peak_detection);
+        distance_calc = (t_distance_calc - t_relative_time);
+
+        uint32_t processing_total_cycles = t_distance_calc - t_start_processing;
+        uint32_t start_detected_pct_x100 = percent_x100(start_detected, processing_total_cycles);
+        uint32_t peak_detection_pct_x100 = percent_x100(peak_detection, processing_total_cycles);
+        uint32_t relative_time_pct_x100 = percent_x100(relative_time_calc, processing_total_cycles);
+        uint32_t distance_calc_pct_x100 = percent_x100(distance_calc, processing_total_cycles);
+
+        sprintf(str_to_print,
+                "Processing split (inside CIR processing): Start detect=%lu cycles (%lu.%02lu%%), Peak=%lu cycles (%lu.%02lu%%), Relative time=%lu cycles (%lu.%02lu%%), Distance=%lu cycles (%lu.%02lu%%)\r\n",
+                (unsigned long)start_detected,
+                (unsigned long)(start_detected_pct_x100 / 100U),
+                (unsigned long)(start_detected_pct_x100 % 100U),
+                (unsigned long)peak_detection,
+                (unsigned long)(peak_detection_pct_x100 / 100U),
+                (unsigned long)(peak_detection_pct_x100 % 100U),
+                (unsigned long)relative_time_calc,
+                (unsigned long)(relative_time_pct_x100 / 100U),
+                (unsigned long)(relative_time_pct_x100 % 100U),
+                (unsigned long)distance_calc,
+                (unsigned long)(distance_calc_pct_x100 / 100U),
+                (unsigned long)(distance_calc_pct_x100 % 100U));
+        test_run_info((unsigned char *)str_to_print);
+        #endif
+
+        sprintf(str_to_print,
+                "Main loop split (of total runtime): Read frame=%lu cycles (%lu.%02lu%%), Read diag=%lu cycles (%lu.%02lu%%), Read CIR=%lu cycles (%lu.%02lu%%), Process CIR=%lu cycles (%lu.%02lu%%)\r\n",
+                (unsigned long)time_to_read_frame,
+                (unsigned long)(read_frame_pct_x100 / 100U),
+                (unsigned long)(read_frame_pct_x100 % 100U),
+                (unsigned long)time_to_read_diag,
+                (unsigned long)(read_diag_pct_x100 / 100U),
+                (unsigned long)(read_diag_pct_x100 % 100U),
+                (unsigned long)time_to_read_cir,
+                (unsigned long)(read_cir_pct_x100 / 100U),
+                (unsigned long)(read_cir_pct_x100 % 100U),
+                (unsigned long)time_to_process_cir,
+                (unsigned long)(process_cir_pct_x100 / 100U),
+                (unsigned long)(process_cir_pct_x100 % 100U));
+        test_run_info((unsigned char *)str_to_print);
+        #endif
+
+        /* sleep to let the UART finish printing */
+        nrf_delay_ms(30);
+        counter++;
+    }
 
     printf("Test completed!\n");
 

@@ -1,8 +1,4 @@
-// detect_cir_start
-// rotate_cir
-// detect_peaks
-// get_relative_time_ticks
-// tof_and_distance_from_absolute_rx
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -57,21 +53,21 @@ size_t detect_peaks(const float *mag,
                     size_t max_peaks,
                     float *mag_buf);
                     
-size_t get_relative_time_ticks(uint64_t rx_time,
-                               float fp_index,
-                               ResponderPeak results[MAX_RESPONDERS],
-                               size_t result_count,
-                               uint64_t *relative_times_out,
-                               size_t max_out);
+// size_t get_relative_time_ticks(uint64_t rx_time,
+//                                float fp_index,
+//                                ResponderPeak results[MAX_RESPONDERS],
+//                                size_t result_count,
+//                                uint64_t *relative_times_out,
+//                                size_t max_out);
 
 tof_result_t tof_and_distance_from_absolute_rx(uint64_t total_time, uint32_t responder_id);
 
-void interval_peak_detection_wrapped(const float *mag,
-                                     size_t len,
-                                     int start_index,
-                                     float fp_index,
-                                     float peak_threshold,
-                                     ResponderPeak results[MAX_RESPONDERS]);
+// void interval_peak_detection_wrapped(const float *mag,
+//                                      size_t len,
+//                                      int start_index,
+//                                      float fp_index,
+//                                      float peak_threshold,
+//                                      ResponderPeak results[MAX_RESPONDERS]);
 
 void interval_peak_detection_wrapped_interval(const float *mag,
                                      size_t len,
@@ -82,15 +78,15 @@ void interval_peak_detection_wrapped_interval(const float *mag,
                                      float peak_threshold,
                                      ResponderPeak results[MAX_RESPONDERS]);
 
-size_t get_dist_intervals(uint64_t rx_time,
-                          float fp_index,
-                          ResponderPeak peaks[MAX_RESPONDERS],
-                          size_t peak_count,
-                          const float *intervals,
-                          size_t interval_count,
-                          tof_result_t *dist_out,
-                          uint32_t *responder_ids_out,
-                          size_t max_out);
+// size_t get_dist_intervals(uint64_t rx_time,
+//                           float fp_index,
+//                           ResponderPeak peaks[MAX_RESPONDERS],
+//                           size_t peak_count,
+//                           const float *intervals,
+//                           size_t interval_count,
+//                           tof_result_t *dist_out,
+//                           uint32_t *responder_ids_out,
+//                           size_t max_out);
 
 size_t get_distances(uint64_t rx_time,
                      float fp_index,

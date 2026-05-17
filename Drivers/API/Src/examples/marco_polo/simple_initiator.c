@@ -211,7 +211,6 @@ int calculate_distance(cir_data_t data) {
     float noise_threshold;
     int start_index = detect_cir_start(data, mag_norm_buf, &noise_threshold);
     if (start_index == -1) {
-        // test_run_info((unsigned char *)"No CIR start detected.\n");
         return 0;
     }
 
@@ -219,19 +218,13 @@ int calculate_distance(cir_data_t data) {
     t_cir_start_detect = timing_now_cycles();
     #endif
 
-    // float fp_index = (float)data.fp_index_samples - (float)start_index;
-    // if (fp_index < 0.0f) {
-    //     fp_index += (float)data.length;
-    // }
-
-    // ResponderPeak results[MAX_RESPONDERS];
     float fp_index = (float)data.fp_index_samples - (float)start_index;
     if (fp_index < 0.0f) {
         fp_index += (float)data.length;
     }
 
-    // float interval_values[MAX_RESPONDERS + 1];
-    float interval_values[16];
+    float interval_values[MAX_RESPONDERS + 1];
+    // float interval_values[16];
     size_t interval_count = find_interval_values(data.mag,
                                                 data.length,
                                                 fp_index,
@@ -241,54 +234,24 @@ int calculate_distance(cir_data_t data) {
     (void)interval_count;
 
     ResponderPeak results[MAX_RESPONDERS];
-    interval_peak_detection_wrapped(mag_norm_buf, data.length, start_index, fp_index, noise_threshold, results);
-
+    interval_peak_detection_wrapped_interval(mag_norm_buf, data.length, start_index, fp_index, interval_values, interval_count, noise_threshold, results);
+    
     #if defined(TIMING_TESTS) && defined(FULL_TIMING)
     t_peak_detection = timing_now_cycles();
     #endif
 
     uint64_t times[MAX_RESPONDERS];
-    size_t time_count = get_relative_time_ticks((uint64_t)data.rx_minus_tx, fp_index, results, MAX_RESPONDERS, times, MAX_RESPONDERS);
-
-    #if defined(TIMING_TESTS) && defined(FULL_TIMING)
-    t_relative_time = timing_now_cycles();
-    #endif
-
-    printf("[");
-    for(int i = 0; i < MAX_RESPONDERS; i++) {
-        if(results[i].valid) {
-            tof_result_t tof_result = tof_and_distance_from_absolute_rx(results[i].time, results[i].responder_id);
-            results[i].distance = tof_result.distance_m;
-        } 
+    size_t time_count = get_distances((uint64_t)data.rx_minus_tx, fp_index, results, times);
+    
+    printf("Detected distances old method integrated: [");
+    for (int i = 0; i < MAX_RESPONDERS; i++) {
         printf("%.3f, ", results[i].distance);
     }
-    printf("]\n");
+    printf("]\n\n");
 
     #if defined(TIMING_TESTS) && defined(FULL_TIMING)
     t_distance_calc = timing_now_cycles();
     #endif
-
-    {
-        interval_peak_detection_wrapped_interval(mag_norm_buf, data.length, start_index, fp_index, interval_values, interval_count, noise_threshold, results);
-
-        tof_result_t distances[7];
-        uint32_t responder_ids[7];
-        size_t distance_count = get_dist_intervals((uint64_t)data.rx_minus_tx, fp_index, results, MAX_RESPONDERS, interval_values, interval_count, distances, responder_ids, 7);
-
-        printf("Detected distances new method: [");
-        for (int i = 0; i < MAX_RESPONDERS; i++) {
-            printf("%.3f, ", results[i].distance);
-        }
-        printf("]\n\n");
-
-        size_t time_count = get_distances((uint64_t)data.rx_minus_tx, fp_index, results, times);
-
-        printf("Detected distances old method integrated: [");
-        for (int i = 0; i < MAX_RESPONDERS; i++) {
-            printf("%.3f, ", results[i].distance);
-        }
-        printf("]\n\n");
-    }
     
     return 0;
 }

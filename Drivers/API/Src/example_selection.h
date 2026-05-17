@@ -78,7 +78,7 @@ extern "C"
 //#define TEST_ACK_DATA_RX
 
 //#define TEST_SPI_CRC
-//#define TEST_GPIO
+// #define TEST_GPIO
 //#define TEST_TIMER
 
 //#define TEST_OTP_WRITE

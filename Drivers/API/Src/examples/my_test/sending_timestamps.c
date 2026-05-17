@@ -41,7 +41,7 @@ extern void test_run_info(unsigned char *data);
 // #define DELTA_I_DTU 1024  // ≈16 ns
 // #define DELTA_I_DTU 8192 // ≈128 ns
 // #define DELTA_I_DTU 32768 // ≈512 ns
-#define DEVICE_INDEX 3 // unique value per device to deterime delay
+#define DEVICE_INDEX 2 // unique value per device to deterime delay
 
 #define LEVEL3_TEST_ENABLE 1
 #define LEVEL3_TRIM_DELTA -10

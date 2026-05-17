@@ -15,17 +15,17 @@
 #include "port.h"
 #include <deca_device_api.h>
 
-// static
+// // static
 // spi_handle_t spi_handler = {
-///* below will be configured in the port_init_dw_chip() */
+// /* below will be configured in the port_init_dw_chip() */
 //  .spi_inst       = 0,
 //  .frequency_slow = 0,
-//  .frequency_fast = 0,
+//  .frequency_fast = 1,
 //  .spi_config     = 0,
-//
+
 //  .csPin          = DW3000_CS_Pin,
 //  .lock           = DW_HAL_NODE_UNLOCKED
-//};
+// };
 
 static spi_handle_t spi1_handler;
 static spi_handle_t spi2_handler;
@@ -375,6 +375,29 @@ int32_t readfromspi(uint16_t headerLength, uint8_t *headerBuffer, uint16_t readL
     while(pgSpiHandler->lock);
 
     __HAL_LOCK(pgSpiHandler);
+
+    if (pgSpiHandler == &spi1_handler)
+    {
+        printf(0, "readfromspi: SPI1, freq=%lu, readLength=%u, headerLength=%u\n",
+                          (unsigned long)pgSpiHandler->spi_config.frequency,
+                          (unsigned int)readLength,
+                          (unsigned int)headerLength);
+    }
+    else if (pgSpiHandler == &spi2_handler)
+    {
+        printf(0, "readfromspi: SPI2, freq=%lu, readLength=%u, headerLength=%u\n",
+                          (unsigned long)pgSpiHandler->spi_config.frequency,
+                          (unsigned int)readLength,
+                          (unsigned int)headerLength);
+    }
+    else
+    {
+        printf(0, "readfromspi: unknown SPI handler, freq=%lu, readLength=%u, headerLength=%u\n",
+                          (unsigned long)pgSpiHandler->spi_config.frequency,
+                          (unsigned int)readLength,
+                          (unsigned int)headerLength);
+    }
+
 
     openspi(&pgSpiHandler->spi_inst);
 

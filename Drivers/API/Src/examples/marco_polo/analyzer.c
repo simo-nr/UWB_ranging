@@ -58,23 +58,6 @@ int normalise_and_find_noise_window(cir_data_t *cir_data, float mag_norm_buf[])
     return min_index;
 }
 
-int find_first_peak(const float *mag, size_t len, int start_index, float threshold)
-{
-    size_t i;
-
-    if (mag == NULL || len == 0 || start_index < 0 || (size_t)start_index >= len) {
-        return -1;
-    }
-
-    for (i = (size_t)start_index; i < len; i++) {
-        if (mag[i] > threshold) {
-            return (int)i;
-        }
-    }
-
-    return -1;
-}
-
 int get_mean_and_var(const float *arr, size_t len, float *mean_out, float *var_out)
 {
     size_t i;
@@ -93,6 +76,23 @@ int get_mean_and_var(const float *arr, size_t len, float *mean_out, float *var_o
     *mean_out = sum / (float)len;
     *var_out = (sum_sq / (float)len) - (*mean_out * *mean_out);
     return 0;
+}
+
+int find_first_peak(const float *mag, size_t len, int start_index, float threshold)
+{
+    size_t i;
+
+    if (mag == NULL || len == 0 || start_index < 0 || (size_t)start_index >= len) {
+        return -1;
+    }
+
+    for (i = (size_t)start_index; i < len; i++) {
+        if (mag[i] > threshold) {
+            return (int)i;
+        }
+    }
+
+    return -1;
 }
 
 int detect_cir_start(cir_data_t cir_data, float mag_norm_buf[], float *noise_threshold_out)
@@ -156,26 +156,6 @@ size_t find_interval_values(const float *mag,
     }
 
     return interval_count;
-}
-
-tof_result_t tof_and_distance_from_absolute_rx(uint64_t total_time, uint32_t responder_id)
-{
-    uint64_t delta_i;
-    uint64_t t_resp_i;
-    double tau_dtu;
-    double tau_s;
-    double d_m;
-    tof_result_t result;
-
-    delta_i = (uint64_t)responder_id * DELTA_I_DTU;
-    t_resp_i = RESP_TX_DELAY_DTU + TX_ANT_DLY_DTU + delta_i;
-    tau_dtu = ((double)total_time - (double)t_resp_i) / 2.0;
-    tau_s = tau_dtu * DTU_SECONDS;
-    d_m = tau_s * SPEED_OF_LIGHT;
-
-    result.tau_dtu = tau_dtu;
-    result.distance_m = d_m;
-    return result;
 }
 
 void interval_peak_detection_wrapped_interval(const float *mag,
@@ -325,6 +305,26 @@ void interval_peak_detection_wrapped_interval(const float *mag,
             results[responder_id].valid = 1;
         }
     }
+}
+
+tof_result_t tof_and_distance_from_absolute_rx(uint64_t total_time, uint32_t responder_id)
+{
+    uint64_t delta_i;
+    uint64_t t_resp_i;
+    double tau_dtu;
+    double tau_s;
+    double d_m;
+    tof_result_t result;
+
+    delta_i = (uint64_t)responder_id * DELTA_I_DTU;
+    t_resp_i = RESP_TX_DELAY_DTU + TX_ANT_DLY_DTU + delta_i;
+    tau_dtu = ((double)total_time - (double)t_resp_i) / 2.0;
+    tau_s = tau_dtu * DTU_SECONDS;
+    d_m = tau_s * SPEED_OF_LIGHT;
+
+    result.tau_dtu = tau_dtu;
+    result.distance_m = d_m;
+    return result;
 }
 
 size_t get_distances(uint64_t rx_time,

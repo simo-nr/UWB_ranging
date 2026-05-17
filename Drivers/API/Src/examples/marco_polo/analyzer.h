@@ -21,6 +21,8 @@
 #define RESP_TX_DELAY_UUS 1500ULL
 #define RESP_TX_DELAY_DTU (RESP_TX_DELAY_UUS * UUS_TO_DWT_TIME)
 
+#define INTENTIONAL_DELAY_DTU 8192ULL
+
 #define TICKS_PER_CIR_SAMPLE 64
 #define MAX_RESPONDERS 7
 
@@ -40,6 +42,13 @@ typedef struct {
 
 
 int detect_cir_start(cir_data_t cir_data, float mag_norm_buf[], float *noise_threshold_out);
+
+size_t find_interval_values(const float *mag,
+                            size_t len,
+                            float fp_index,
+                            uint64_t rx_time,
+                            float *interval_values_out,
+                            size_t max_intervals);
 
 size_t detect_peaks(const float *mag,
                     size_t len,
@@ -63,3 +72,27 @@ void interval_peak_detection_wrapped(const float *mag,
                                      float fp_index,
                                      float peak_threshold,
                                      ResponderPeak results[MAX_RESPONDERS]);
+
+void interval_peak_detection_wrapped_interval(const float *mag,
+                                     size_t len,
+                                     int start_index,
+                                     float fp_index,
+                                     const float *intervals,
+                                     size_t interval_count,
+                                     float peak_threshold,
+                                     ResponderPeak results[MAX_RESPONDERS]);
+
+size_t get_dist_intervals(uint64_t rx_time,
+                          float fp_index,
+                          ResponderPeak peaks[MAX_RESPONDERS],
+                          size_t peak_count,
+                          const float *intervals,
+                          size_t interval_count,
+                          tof_result_t *dist_out,
+                          uint32_t *responder_ids_out,
+                          size_t max_out);
+
+size_t get_distances(uint64_t rx_time,
+                     float fp_index,
+                     ResponderPeak results[MAX_RESPONDERS],
+                     uint64_t *relative_times_out);

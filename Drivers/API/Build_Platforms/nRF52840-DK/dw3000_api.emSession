@@ -65,15 +65,6 @@
  <Watch4>
   <Watches active="0" update="Never"/>
  </Watch4>
- <Files>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="344" useTextEdit="1" path="Source/platform/deca_spi.c" left="0" selected="1" top="317" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="454" useTextEdit="1" path="../../Src/examples/marco_polo/simple_initiator.c" left="0" top="433" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="92" useTextEdit="1" path="Source/main.c" left="0" top="70" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="684" useTextEdit="1" path="../../Shared/dwt_uwb_driver/deca_compat.c" left="0" top="661" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="495" useTextEdit="1" path="../../Shared/dwt_uwb_driver/dw3000/dw3000_device.c" left="0" top="473" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="636" useTextEdit="1" path="sdk/modules/nrfx/hal/nrf_spim.h" left="0" top="612" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="428" useTextEdit="1" path="sdk/modules/nrfx/drivers/src/nrfx_gpiote.c" left="0" top="401" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="665" useTextEdit="1" path="sdk/modules/nrfx/hal/nrf_gpio.h" left="0" top="644" codecName="Default"/>
- </Files>
+ <Files/>
  <EMStudioWindow activeProject="dw3000_api" fileDialogDefaultFilter="*.c" autoConnectTarget="J-Link" buildConfiguration="Debug" sessionSettings="" debugSearchFileMap="" fileDialogInitialDirectory="/Users/simonrolly/Documents/uni/master/thesis/DW3_QM33_SDK_1/Drivers/API/Src/examples/marco_polo" debugSearchPath="" autoConnectCapabilities="3711"/>
 </session>

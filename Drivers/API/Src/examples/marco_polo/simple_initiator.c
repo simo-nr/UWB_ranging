@@ -1,6 +1,6 @@
 /*! ----------------------------------------------------------------------------
- *  @file    simple_rx.c
- *  @brief   Simple RX example code
+ *  @file    simple_initiator.c
+ *  @brief   Simple INITIATOR     example code
  *
  * @author Decawave
  *
@@ -55,88 +55,7 @@ static float cir_mag_buf[DWT_CIR_LEN_MAX];
 extern dwt_config_t config_options;
 extern dwt_txconfig_t txconfig_options;
 
-#define TIMING_TESTS
-#define FULL_TIMING
-#define LOOP_TIMING
-#define TIMING_LOOP_COUNT 1000U
-#if defined(TIMING_TESTS) || defined(LOOP_TIMING)
-bool first_time = true;
-
-uint32_t t_start;
-uint32_t t_frame_rec;
-uint32_t t_diag_read;
-uint32_t t_cir_read;
-uint32_t t_cir_processed;
-uint32_t t_end;
-
-uint32_t total_elapsed_cycles;
-uint32_t total_elapsed_us;
-uint32_t total_elapsed_ms;
-
-uint32_t time_to_read_frame;
-uint32_t time_to_read_diag;
-uint32_t time_to_read_cir;
-uint32_t time_to_process_cir;
-
-uint32_t time_to_read_frame_us;
-uint32_t time_to_read_diag_us;
-uint32_t time_to_read_cir_us;
-uint32_t time_to_process_cir_us;
-
-uint32_t t_start_processing;
-uint32_t t_cir_start_detect;
-uint32_t t_peak_detection;
-uint32_t t_relative_time;
-uint32_t t_distance_calc;
-
-uint32_t start_detected;
-uint32_t peak_detection;
-uint32_t relative_time_calc;
-uint32_t distance_calc;
-
-uint64_t total_loop_cycles_acc;
-uint64_t total_read_frame_cycles_acc;
-uint64_t total_read_diag_cycles_acc;
-uint64_t total_read_cir_cycles_acc;
-uint64_t total_process_cir_cycles_acc;
-uint64_t total_start_detect_cycles_acc;
-uint64_t total_peak_detection_cycles_acc;
-uint64_t total_distance_calc_cycles_acc;
-uint32_t measured_loop_count;
-
-static void timing_init(void)
-{
-    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
-    DWT->CYCCNT = 0;
-    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
-}
-
-static inline uint32_t timing_now_cycles(void)
-{
-    return DWT->CYCCNT;
-}
-
-static inline uint32_t cycles_to_us(uint32_t cycles)
-{
-    return (uint32_t)(((uint64_t)cycles * 1000000ULL) / (uint64_t)SystemCoreClock);
-}
-
-static inline uint32_t cycles_to_ms(uint32_t cycles)
-{
-    return (uint32_t)(((uint64_t)cycles * 1000ULL) / (uint64_t)SystemCoreClock);
-}
-
-/* Returns percentage scaled by 100 (e.g. 1234 means 12.34%). */
-static inline uint32_t percent_x100(uint32_t part, uint32_t total)
-{
-    if (total == 0U)
-    {
-        return 0U;
-    }
-    return (uint32_t)(((uint64_t)part * 10000ULL) / (uint64_t)total);
-}
-#endif
-
+#define TIMING_LOOP_COUNT 100U
 
 /* 
     Print the CIR data in a format that can be easily plotted.
@@ -216,20 +135,13 @@ static float cir_mag_from_buf(const uint8_t *ptr, dwt_cir_read_mode_e mode)
     return sqrtf(re_f * re_f + im_f * im_f);
 }
 
-int calculate_distance(cir_data_t data) {
-    #if defined(TIMING_TESTS) && defined(FULL_TIMING)
-    t_start_processing = timing_now_cycles();
-    #endif
-
+int calculate_distance(const cir_data_t data, ResponderPeak out_results[MAX_RESPONDERS]) {
+    
     float noise_threshold;
     int start_index = detect_cir_start(data, mag_norm_buf, &noise_threshold);
     if (start_index == -1) {
         return 0;
     }
-
-    #if defined(TIMING_TESTS) && defined(FULL_TIMING)
-    t_cir_start_detect = timing_now_cycles();
-    #endif
 
     float fp_index = (float)data.fp_index_samples - (float)start_index;
     if (fp_index < 0.0f) {
@@ -237,36 +149,27 @@ int calculate_distance(cir_data_t data) {
     }
 
     float interval_values[MAX_RESPONDERS + 1];
-    // float interval_values[16];
     size_t interval_count = find_interval_values(data.mag,
                                                 data.length,
                                                 fp_index,
                                                 (uint64_t)data.rx_minus_tx,
                                                 interval_values,
-                                                MAX_RESPONDERS+1);
-    (void)interval_count;
+                                                MAX_RESPONDERS + 1);
 
-    ResponderPeak results[MAX_RESPONDERS];
-    interval_peak_detection_wrapped_interval(mag_norm_buf, data.length, start_index, fp_index, interval_values, interval_count, noise_threshold, results);
-    
-    #if defined(TIMING_TESTS) && defined(FULL_TIMING)
-    t_peak_detection = timing_now_cycles();
-    #endif
+    interval_peak_detection_wrapped_interval(mag_norm_buf,
+                                             data.length,
+                                             start_index,
+                                             fp_index,
+                                             interval_values,
+                                             interval_count,
+                                             noise_threshold,
+                                             out_results);
 
     uint64_t times[MAX_RESPONDERS];
-    size_t time_count = get_distances((uint64_t)data.rx_minus_tx, fp_index, results, times);
+    size_t time_count = get_distances((uint64_t)data.rx_minus_tx, fp_index, out_results, times);
+    (void)time_count;
     
-    printf("Detected distances old method integrated: [");
-    for (int i = 0; i < MAX_RESPONDERS; i++) {
-        printf("%.3f, ", results[i].distance);
-    }
-    printf("]\n\n");
-
-    #if defined(TIMING_TESTS) && defined(FULL_TIMING)
-    t_distance_calc = timing_now_cycles();
-    #endif
-    
-    return 0;
+    return (int)interval_count;
 }
 
 /**
@@ -345,31 +248,10 @@ int simple_initiator(void)
 
     printf("Button pressed, starting test!\n");
 
-    #if defined(TIMING_TESTS) || defined(LOOP_TIMING)
-    timing_init();
-    #endif
-
-    #if defined(LOOP_TIMING)
-    uint64_t test_start_cycles = timing_now_cycles();
-    total_loop_cycles_acc = 0;
-    measured_loop_count = 0;
-    #endif
-
-    #if defined(TIMING_TESTS)
-    total_read_frame_cycles_acc = 0;
-    total_read_diag_cycles_acc = 0;
-    total_read_cir_cycles_acc = 0;
-    total_process_cir_cycles_acc = 0;
-    total_start_detect_cycles_acc = 0;
-    total_peak_detection_cycles_acc = 0;
-    total_distance_calc_cycles_acc = 0;
-    #endif
-
     int counter = 0;
     /* Run one warm-up loop plus TIMING_LOOP_COUNT measured loops. */
     while (counter < ((int)TIMING_LOOP_COUNT + 1))
     {
-        uint32_t loop_start = timing_now_cycles();
         // printf("Starting round %d...\n", counter);
         // printf("Waiting for button press to start round...\n");
         // /* Wait for Button 1 (index 0) to be pressed. */
@@ -385,21 +267,6 @@ int simple_initiator(void)
         //     Sleep(10);
         // }
         // printf("Button pressed, sending frame!\n");
-
-        #if defined(TIMING_TESTS)
-        t_start = timing_now_cycles();
-        t_frame_rec = 0;
-        t_diag_read = 0;
-        t_cir_read = 0;
-        t_cir_processed = 0;
-        t_end = 0;
-
-        t_start_processing = 0;
-        t_cir_start_detect = 0;
-        t_peak_detection = 0;
-        t_relative_time = 0;
-        t_distance_calc = 0;
-        #endif
 
         /////////////// sending frame ///////////////
 
@@ -440,9 +307,6 @@ int simple_initiator(void)
          * STATUS register is 5 bytes long but, as the event we are looking at is in the first byte of the register, we can use this simplest API
          * function to access it. */
         waitforsysstatus(&status_reg, NULL, (DWT_INT_RXFCG_BIT_MASK | SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR), 0);
-        #if defined(TIMING_TESTS)
-        t_frame_rec = timing_now_cycles();
-        #endif
 
         if (status_reg & DWT_INT_RXFCG_BIT_MASK)
         {
@@ -451,10 +315,6 @@ int simple_initiator(void)
 
             dwt_cirdiags_t diag;
             dwt_readdiagnostics_acc(&diag, DWT_ACC_IDX_IP_M);
-            
-            #if defined(TIMING_TESTS)
-            t_diag_read = timing_now_cycles();
-            #endif
 
             /* Start reading CIR data from Ipatov offset */
             dwt_acc_idx_e acc_idx = DWT_ACC_IDX_IP_M ;
@@ -471,10 +331,6 @@ int simple_initiator(void)
             /* Ipatov data */
             int n_samples = n_samples_ipatov;
             dwt_readcir((uint32_t*)cir_buf, acc_idx, 0, n_samples, modes);
-            
-            #if defined(TIMING_TESTS)
-            t_cir_read = timing_now_cycles();
-            #endif
 
             // #define PRINT_CIR
             #if defined(PRINT_CIR)
@@ -504,12 +360,17 @@ int simple_initiator(void)
             for (int i = 0; i < n_samples; i++) {
                 cir_data.mag[i] = cir_mag_from_buf(&cir_buf[i * ((modes == DWT_CIR_READ_FULL) ? 6 : 4)], modes);
             }
-            calculate_distance(cir_data);
 
-            #if defined(TIMING_TESTS)
-            t_cir_processed = timing_now_cycles();
-            #endif
-            
+            ResponderPeak distance_results[MAX_RESPONDERS];
+            int detected_count = calculate_distance(cir_data, distance_results);
+            (void)detected_count;
+
+            printf("Test %d: [", counter);
+            for (int i = 0; i < MAX_RESPONDERS; i++) {
+                printf("%.3f, ", distance_results[i].distance);
+            }
+            printf("]\n");
+
             /* Clear good RX frame event in the DW IC status register. */
             dwt_writesysstatuslo(DWT_INT_RXFCG_BIT_MASK);
         }
@@ -518,152 +379,14 @@ int simple_initiator(void)
             /* Clear RX error events in the DW IC status register. */
             dwt_writesysstatuslo(SYS_STATUS_ALL_RX_ERR);
         }
-        #if defined(TIMING_TESTS)
-        t_end = timing_now_cycles();
-
-        if (!first_time && (status_reg & DWT_INT_RXFCG_BIT_MASK)) {
-            total_elapsed_cycles = t_end - t_start;
-
-            time_to_read_frame = (t_frame_rec - t_start);
-            time_to_read_diag = (t_diag_read - t_frame_rec);
-            time_to_read_cir = (t_cir_read - t_diag_read);
-            time_to_process_cir = (t_cir_processed - t_cir_read);
-
-            total_read_frame_cycles_acc += time_to_read_frame;
-            total_read_diag_cycles_acc += time_to_read_diag;
-            total_read_cir_cycles_acc += time_to_read_cir;
-            total_process_cir_cycles_acc += time_to_process_cir;
-
-            #if defined(FULL_TIMING)
-            start_detected = (t_cir_start_detect - t_start_processing);
-            peak_detection = (t_peak_detection - t_cir_start_detect);
-            distance_calc = (t_distance_calc - t_peak_detection);
-
-            total_start_detect_cycles_acc += start_detected;
-            total_peak_detection_cycles_acc += peak_detection;
-            total_distance_calc_cycles_acc += distance_calc;
-            #endif
-        }
-        #endif
 
         /* sleep to let the UART finish printing */
         // nrf_delay_ms(30);
-        uint32_t loop_end = timing_now_cycles();
-
-        if (!first_time) {
-            #if defined(LOOP_TIMING)
-            total_loop_cycles_acc += loop_end - loop_start;
-            measured_loop_count++;
-            #endif
-        }
-
-        first_time = false;
-
         counter++;
     }
-
-    #if defined(LOOP_TIMING)
-    if (measured_loop_count > 0U) {
-        uint64_t average_cycles = total_loop_cycles_acc / measured_loop_count;
-        uint64_t average_us = cycles_to_us((uint32_t)average_cycles);
-        uint64_t average_ms = cycles_to_ms((uint32_t)average_cycles);
-
-        sprintf(str_to_print,
-                    "Average loop time over %lu measured loops: %lu cycles (%lu us, %lu ms)\r\n",
-                    (unsigned long)measured_loop_count,
-                    (unsigned long)average_cycles,
-                    (unsigned long)average_us,
-                    (unsigned long)average_ms);
-        test_run_info((unsigned char *)str_to_print);
-    }
-
-    uint64_t test_end_cycles = timing_now_cycles();
-    uint64_t test_total_cycles = test_end_cycles - test_start_cycles;
-    uint64_t test_total_us = cycles_to_us((uint32_t)test_total_cycles);
-    uint64_t test_total_ms = cycles_to_ms((uint32_t)test_total_cycles);
-
-    sprintf(str_to_print,
-                "Total test time including warm-up: %lu cycles (%lu us, %lu ms)\r\n",
-                (unsigned long)test_total_cycles,
-                (unsigned long)test_total_us,
-                (unsigned long)test_total_ms);
-    test_run_info((unsigned char *)str_to_print);
-    #endif
-
-    #if defined(TIMING_TESTS)
-    if (measured_loop_count > 0U) {
-        uint64_t avg_read_frame = total_read_frame_cycles_acc / measured_loop_count;
-        uint64_t avg_read_diag = total_read_diag_cycles_acc / measured_loop_count;
-        uint64_t avg_read_cir = total_read_cir_cycles_acc / measured_loop_count;
-        uint64_t avg_process_cir = total_process_cir_cycles_acc / measured_loop_count;
-        uint64_t avg_total_sections = avg_read_frame + avg_read_diag + avg_read_cir + avg_process_cir;
-
-        uint32_t read_frame_pct_x100 = percent_x100((uint32_t)avg_read_frame, (uint32_t)avg_total_sections);
-        uint32_t read_diag_pct_x100 = percent_x100((uint32_t)avg_read_diag, (uint32_t)avg_total_sections);
-        uint32_t read_cir_pct_x100 = percent_x100((uint32_t)avg_read_cir, (uint32_t)avg_total_sections);
-        uint32_t process_cir_pct_x100 = percent_x100((uint32_t)avg_process_cir, (uint32_t)avg_total_sections);
-
-        sprintf(str_to_print,
-                "Average main sections: Read frame=%lu cycles (%lu us, %lu.%02lu%%), Read diag=%lu cycles (%lu us, %lu.%02lu%%), Read CIR=%lu cycles (%lu us, %lu.%02lu%%), Process CIR=%lu cycles (%lu us, %lu.%02lu%%)\r\n",
-                (unsigned long)avg_read_frame,
-                (unsigned long)cycles_to_us((uint32_t)avg_read_frame),
-                (unsigned long)(read_frame_pct_x100 / 100U),
-                (unsigned long)(read_frame_pct_x100 % 100U),
-                (unsigned long)avg_read_diag,
-                (unsigned long)cycles_to_us((uint32_t)avg_read_diag),
-                (unsigned long)(read_diag_pct_x100 / 100U),
-                (unsigned long)(read_diag_pct_x100 % 100U),
-                (unsigned long)avg_read_cir,
-                (unsigned long)cycles_to_us((uint32_t)avg_read_cir),
-                (unsigned long)(read_cir_pct_x100 / 100U),
-                (unsigned long)(read_cir_pct_x100 % 100U),
-                (unsigned long)avg_process_cir,
-                (unsigned long)cycles_to_us((uint32_t)avg_process_cir),
-                (unsigned long)(process_cir_pct_x100 / 100U),
-                (unsigned long)(process_cir_pct_x100 % 100U));
-        test_run_info((unsigned char *)str_to_print);
-
-        #if defined(FULL_TIMING)
-        uint64_t avg_start_detect = total_start_detect_cycles_acc / measured_loop_count;
-        uint64_t avg_peak_detection = total_peak_detection_cycles_acc / measured_loop_count;
-        uint64_t avg_distance_calc = total_distance_calc_cycles_acc / measured_loop_count;
-        uint64_t avg_processing_sections = avg_start_detect + avg_peak_detection + avg_distance_calc;
-
-        uint32_t start_detect_pct_x100 = percent_x100((uint32_t)avg_start_detect, (uint32_t)avg_processing_sections);
-        uint32_t peak_detection_pct_x100 = percent_x100((uint32_t)avg_peak_detection, (uint32_t)avg_processing_sections);
-        uint32_t distance_calc_pct_x100 = percent_x100((uint32_t)avg_distance_calc, (uint32_t)avg_processing_sections);
-
-        sprintf(str_to_print,
-                "Average processing sections: Start detect=%lu cycles (%lu us, %lu.%02lu%%), Peak=%lu cycles (%lu us, %lu.%02lu%%), Distance=%lu cycles (%lu us, %lu.%02lu%%)\r\n",
-                (unsigned long)avg_start_detect,
-                (unsigned long)cycles_to_us((uint32_t)avg_start_detect),
-                (unsigned long)(start_detect_pct_x100 / 100U),
-                (unsigned long)(start_detect_pct_x100 % 100U),
-                (unsigned long)avg_peak_detection,
-                (unsigned long)cycles_to_us((uint32_t)avg_peak_detection),
-                (unsigned long)(peak_detection_pct_x100 / 100U),
-                (unsigned long)(peak_detection_pct_x100 % 100U),
-                (unsigned long)avg_distance_calc,
-                (unsigned long)cycles_to_us((uint32_t)avg_distance_calc),
-                (unsigned long)(distance_calc_pct_x100 / 100U),
-                (unsigned long)(distance_calc_pct_x100 % 100U));
-        test_run_info((unsigned char *)str_to_print);
-        #endif
-    }
-    #endif
 
     printf("Test completed!\n");
 
     return 0;
 }
 #endif
-/*****************************************************************************************************************************************************
- * NOTES:
- *
- * 1. In this example, maximum frame length is set to 127 bytes which is 802.15.4 UWB standard maximum frame length. DW IC supports an extended
- *    frame length (up to 1023 bytes long) mode which is not used in this example.
- * 2. Manual reception activation is performed here but DW IC offers several features that can be used to handle more complex scenarios or to
- *    optimise system's overall performance (e.g. timeout after a given time, automatic re-enabling of reception in case of errors, etc.).
- * 3. We use polled mode of operation here to keep the example as simple as possible, but RXFCG and error/timeout status events can be used to generate
- *    interrupts. Please refer to DW IC User Manual for more details on "interrupts".
- ****************************************************************************************************************************************************/

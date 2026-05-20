@@ -43,7 +43,7 @@ extern void test_run_info(unsigned char *data);
 // #define DELTA_I_DTU 1024  // ≈16 ns
 // #define DELTA_I_DTU 8192 // ≈128 ns
 // #define DELTA_I_DTU 32768 // ≈512 ns
-#define DEVICE_INDEX 2 // unique value per device to deterime delay
+#define DEVICE_INDEX 0 // unique value per device to deterime delay
 
 #define LEVEL3_TEST_ENABLE 1
 #define LEVEL3_TRIM_DELTA -10
@@ -214,7 +214,7 @@ int simple_responder(void)
             /* Clear good RX frame event in the DW IC status register. */
             dwt_writesysstatuslo(DWT_INT_RXFCG_BIT_MASK);
 
-            test_run_info((unsigned char *)"Frame Received");
+            // test_run_info((unsigned char *)"Frame Received");
 
             poll_rx_ts = get_rx_timestamp_u64();
 
@@ -275,10 +275,10 @@ int simple_responder(void)
 
                 /* Flash only after the response transmission has completed. */
                 dwt_setleds(DWT_LEDS_ENABLE | DWT_LEDS_INIT_BLINK);
-                nrf_delay_ms(RESP_LED_FLASH_MS);
+                nrf_delay_ms(1);
                 dwt_setleds(DWT_LEDS_DISABLE);
                 
-                actual_tx_ts = get_tx_timestamp_u64();
+                // actual_tx_ts = get_tx_timestamp_u64();
                 if (trim_cfo != trim_temp)
                 {
                     dwt_setxtaltrim(trim_cfo);
@@ -286,7 +286,7 @@ int simple_responder(void)
             }
             else
             {
-                test_run_info((unsigned char *)"Delayed RESPONSE TX failed\r\n");
+                // test_run_info((unsigned char *)"Delayed RESPONSE TX failed\r\n");
             }
         }
         else

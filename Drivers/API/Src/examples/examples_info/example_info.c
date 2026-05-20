@@ -449,6 +449,13 @@ void build_examples(void)
     test_cnt++;
 #endif
 
+#ifdef SIMPLE_INITIATOR_TIMING
+    extern int simple_initiator_timing(void);
+
+    example_pointer = simple_initiator_timing;
+    test_cnt++;
+#endif
+
 #ifdef SIMPLE_RESPONDER
     extern int simple_responder(void);
 

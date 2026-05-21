@@ -60,10 +60,26 @@ extern dwt_txconfig_t txconfig_options;
 #define TIMING_TESTS
 #define FULL_TIMING
 #define LOOP_TIMING
+#define PROC_TIMING
 
 #if defined(TIMING_TESTS) || defined(LOOP_TIMING)
 uint32_t total_elapsed_cycles;
 
+uint64_t total_loop_cycles_acc;
+uint64_t total_tx_cycles_acc;
+uint64_t total_wait_response_cycles_acc;
+uint64_t total_diag_read_cycles_acc;
+uint64_t total_cir_read_cycles_acc;
+uint64_t total_cir_mag_cycles_acc;
+uint64_t total_start_detect_cycles_acc;
+uint64_t total_peak_detection_cycles_acc;
+uint64_t total_distance_calc_cycles_acc;
+uint64_t total_print_cycles_acc;
+uint32_t measured_loop_count;
+
+uint32_t proc_start_detect_cycles;
+uint32_t proc_peak_detection_cycles;
+uint32_t proc_distance_calc_cycles;
 
 static void timing_init(void)
 {
@@ -95,6 +111,60 @@ static inline uint32_t percent_x100(uint32_t part, uint32_t total)
         return 0U;
     }
     return (uint32_t)(((uint64_t)part * 10000ULL) / (uint64_t)total);
+}
+
+static void print_timing_average_line(const char *name, uint64_t total_cycles, uint64_t avg_loop_cycles)
+{
+    uint64_t avg_cycles;
+    uint32_t avg_us;
+    uint32_t pct;
+
+    if (measured_loop_count == 0U)
+    {
+        return;
+    }
+
+    avg_cycles = total_cycles / measured_loop_count;
+    avg_us = cycles_to_us(avg_cycles);
+    pct = percent_x100((uint32_t)avg_cycles, (uint32_t)avg_loop_cycles);
+
+    printf("%-24s: %llu cycles, %lu us, %lu.%02lu %%\n",
+           name,
+           (unsigned long long)avg_cycles,
+           (unsigned long)avg_us,
+           (unsigned long)(pct / 100U),
+           (unsigned long)(pct % 100U));
+}
+
+static void print_timing_averages(void)
+{
+    uint64_t avg_loop_cycles;
+    uint32_t avg_loop_us;
+
+    if (measured_loop_count == 0U)
+    {
+        printf("No successful measured loops.\n");
+        return;
+    }
+
+    avg_loop_cycles = total_loop_cycles_acc / measured_loop_count;
+    avg_loop_us = cycles_to_us(avg_loop_cycles);
+
+    printf("\nTiming averages over %lu measured loops:\n", (unsigned long)measured_loop_count);
+    printf("%-24s: %llu cycles, %lu us, 100.00 %%\n",
+           "total loop",
+           (unsigned long long)avg_loop_cycles,
+           (unsigned long)avg_loop_us);
+
+    print_timing_average_line("tx", total_tx_cycles_acc, avg_loop_cycles);
+    print_timing_average_line("wait response", total_wait_response_cycles_acc, avg_loop_cycles);
+    print_timing_average_line("read diagnostics", total_diag_read_cycles_acc, avg_loop_cycles);
+    print_timing_average_line("read CIR", total_cir_read_cycles_acc, avg_loop_cycles);
+    print_timing_average_line("CIR magnitude", total_cir_mag_cycles_acc, avg_loop_cycles);
+    print_timing_average_line("detect CIR start", total_start_detect_cycles_acc, avg_loop_cycles);
+    print_timing_average_line("peak detection", total_peak_detection_cycles_acc, avg_loop_cycles);
+    print_timing_average_line("distance calc", total_distance_calc_cycles_acc, avg_loop_cycles);
+    print_timing_average_line("printing", total_print_cycles_acc, avg_loop_cycles);
 }
 #endif
 
@@ -178,7 +248,11 @@ static float cir_mag_from_buf(const uint8_t *ptr, dwt_cir_read_mode_e mode)
 }
 
 int calculate_distance(const cir_data_t data, ResponderPeak out_results[MAX_RESPONDERS]) 
-{    
+{
+    #if defined(TIMING_TESTS) && defined(PROC_TIMING)
+    uint32_t t_proc_start = timing_now_cycles();
+    #endif
+
     float noise_threshold;
     int start_index = detect_cir_start(data, mag_norm_buf, &noise_threshold);
     if (start_index == -1) {
@@ -189,6 +263,10 @@ int calculate_distance(const cir_data_t data, ResponderPeak out_results[MAX_RESP
     if (fp_index < 0.0f) {
         fp_index += (float)data.length;
     }
+
+    #if defined(TIMING_TESTS) && defined(PROC_TIMING)
+    uint32_t t_start_detect_done = timing_now_cycles();
+    #endif
 
     float interval_values[MAX_RESPONDERS + 1];
     size_t interval_count = find_interval_values(data.mag,
@@ -207,9 +285,20 @@ int calculate_distance(const cir_data_t data, ResponderPeak out_results[MAX_RESP
                                              noise_threshold,
                                              out_results);
 
+    #if defined(TIMING_TESTS) && defined(PROC_TIMING)
+    uint32_t t_peak_detection_done = timing_now_cycles();
+    #endif
+
     uint64_t times[MAX_RESPONDERS];
     size_t time_count = get_distances((uint64_t)data.rx_minus_tx, fp_index, out_results, times);
     (void)time_count;
+
+    #if defined(TIMING_TESTS) && defined(PROC_TIMING)
+    uint32_t t_distance_calc_done = timing_now_cycles();
+    proc_start_detect_cycles = t_start_detect_done - t_proc_start;
+    proc_peak_detection_cycles = t_peak_detection_done - t_start_detect_done;
+    proc_distance_calc_cycles = t_distance_calc_done - t_peak_detection_done;
+    #endif
     
     return (int)interval_count;
 }
@@ -293,6 +382,17 @@ int simple_initiator(void)
     #if defined(TIMING_TESTS) || defined(LOOP_TIMING)
     timing_init();
     uint64_t test_start_cycles = timing_now_cycles();
+
+    uint32_t t_loop_start = 0;
+    uint32_t t_tx_done = 0;
+    uint32_t t_response_done = 0;
+    uint32_t t_diag_done = 0;
+    uint32_t t_cir_read_done = 0;
+    uint32_t t_cir_mag_done = 0;
+    uint32_t t_process_done = 0;
+    uint32_t t_print_done = 0;
+
+    bool loop_success = false;
     #endif
 
     int counter = 0;
@@ -314,6 +414,19 @@ int simple_initiator(void)
         //     Sleep(10);
         // }
         // printf("Button pressed, sending frame!\n");
+
+        #if defined(TIMING_TESTS) || defined(LOOP_TIMING)
+        t_loop_start = timing_now_cycles();
+        #endif
+        #if defined(TIMING_TESTS) || defined(LOOP_TIMING)
+        t_tx_done = t_loop_start;
+        t_response_done = t_loop_start;
+        t_diag_done = t_loop_start;
+        t_cir_read_done = t_loop_start;
+        t_cir_mag_done = t_loop_start;
+        t_process_done = t_loop_start;
+        t_print_done = t_loop_start;
+        #endif
 
         /////////////// sending frame ///////////////
 
@@ -339,6 +452,10 @@ int simple_initiator(void)
         /* Clear TX frame sent event. */
         dwt_writesysstatuslo(DWT_INT_TXFRS_BIT_MASK);
 
+        #if defined(TIMING_TESTS) || defined(LOOP_TIMING)
+        t_tx_done = timing_now_cycles();
+        #endif
+
         /* TESTING BREAKPOINT LOCATION #1 */
 
         /* Clear local RX buffer to avoid having leftovers from previous receptions  This is not necessary but is included here to aid reading
@@ -355,6 +472,10 @@ int simple_initiator(void)
          * function to access it. */
         waitforsysstatus(&status_reg, NULL, (DWT_INT_RXFCG_BIT_MASK | SYS_STATUS_ALL_RX_TO | SYS_STATUS_ALL_RX_ERR), 0);
 
+        #if defined(TIMING_TESTS) || defined(LOOP_TIMING)
+        t_response_done = timing_now_cycles();
+        #endif
+
         if (status_reg & DWT_INT_RXFCG_BIT_MASK)
         {
             uint64_t rx_ts = get_rx_timestamp_u64();
@@ -362,6 +483,11 @@ int simple_initiator(void)
 
             dwt_cirdiags_t diag;
             dwt_readdiagnostics_acc(&diag, DWT_ACC_IDX_IP_M);
+
+            #if defined(TIMING_TESTS) || defined(LOOP_TIMING)
+            t_diag_done = timing_now_cycles();
+            #endif
+            loop_success = true;
 
             /* Start reading CIR data from Ipatov offset */
             dwt_acc_idx_e acc_idx = DWT_ACC_IDX_IP_M ;
@@ -378,6 +504,10 @@ int simple_initiator(void)
             /* Ipatov data */
             int n_samples = n_samples_ipatov;
             dwt_readcir((uint32_t*)cir_buf, acc_idx, 0, n_samples, modes);
+
+            #if defined(TIMING_TESTS) || defined(LOOP_TIMING)
+            t_cir_read_done = timing_now_cycles();
+            #endif
 
             // #define PRINT_CIR
             #if defined(PRINT_CIR)
@@ -408,15 +538,27 @@ int simple_initiator(void)
                 cir_data.mag[i] = cir_mag_from_buf(&cir_buf[i * ((modes == DWT_CIR_READ_FULL) ? 6 : 4)], modes);
             }
 
+            #if defined(TIMING_TESTS) || defined(LOOP_TIMING)
+            t_cir_mag_done = timing_now_cycles();
+            #endif
+
             ResponderPeak distance_results[MAX_RESPONDERS];
             int detected_count = calculate_distance(cir_data, distance_results);
             (void)detected_count;
+
+            #if defined(TIMING_TESTS) || defined(LOOP_TIMING)
+            t_process_done = timing_now_cycles();
+            #endif
 
             // printf("Test %d: [", counter);
             // for (int i = 0; i < MAX_RESPONDERS; i++) {
             //     printf("%.3f, ", distance_results[i].distance);
             // }
             // printf("]\n");
+
+            #if defined(TIMING_TESTS) || defined(LOOP_TIMING)
+            t_print_done = timing_now_cycles();
+            #endif
 
             /* Clear good RX frame event in the DW IC status register. */
             dwt_writesysstatuslo(DWT_INT_RXFCG_BIT_MASK);
@@ -428,6 +570,25 @@ int simple_initiator(void)
             dwt_writesysstatuslo(SYS_STATUS_ALL_RX_ERR);
         }
 
+        #if defined(TIMING_TESTS) || defined(LOOP_TIMING)
+        if (loop_success && counter > 0)
+        {
+            total_loop_cycles_acc += (uint32_t)(t_print_done - t_loop_start);
+            total_tx_cycles_acc += (uint32_t)(t_tx_done - t_loop_start);
+            total_wait_response_cycles_acc += (uint32_t)(t_response_done - t_tx_done);
+            total_diag_read_cycles_acc += (uint32_t)(t_diag_done - t_response_done);
+            total_cir_read_cycles_acc += (uint32_t)(t_cir_read_done - t_diag_done);
+            total_cir_mag_cycles_acc += (uint32_t)(t_cir_mag_done - t_cir_read_done);
+
+            total_start_detect_cycles_acc += proc_start_detect_cycles;
+            total_peak_detection_cycles_acc += proc_peak_detection_cycles;
+            total_distance_calc_cycles_acc += proc_distance_calc_cycles;
+
+            total_print_cycles_acc += (uint32_t)(t_print_done - t_process_done);
+            measured_loop_count++;
+        }
+        #endif
+
         /* sleep to let the UART finish printing */
         // nrf_delay_ms(30);
         counter++;
@@ -438,6 +599,8 @@ int simple_initiator(void)
     uint64_t total_test_cycles = test_end_cycles - test_start_cycles;
     uint32_t avg_loop_cycles = (uint32_t)(total_test_cycles / TIMING_LOOP_COUNT);
     printf("Average cycles per loop: %lu (%lu us)\n", avg_loop_cycles, cycles_to_us(avg_loop_cycles));
+
+    print_timing_averages();
     #endif
 
     printf("Test completed!\n");

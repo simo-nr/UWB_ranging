@@ -62,6 +62,11 @@ extern dwt_txconfig_t txconfig_options;
 
 
 ////////////// setting unique responder delays //////////////
+#define NRF_UID_0 0x984333D21EA7858FULL
+#define NRF_UID_1 0xA430F6CC89EF287AULL
+#define NRF_UID_2 0xBF8965F181CE8EF5ULL
+#define NRF_UID_3 0xB0E656A4CFB9F2C4ULL
+
 uint64_t get_nrf_unique_id(void)
 {
     uint64_t id0 = NRF_FICR->DEVICEID[0];
@@ -69,28 +74,42 @@ uint64_t get_nrf_unique_id(void)
     return (id1 << 32) | id0;
 }
 
-// #if DEVICE_INDEX == 0 // 0x984333D21EA7858F
-//     #define TX_ANT_DLY 16366
-//     #define RX_ANT_DLY 16366
-// #elif DEVICE_INDEX == 1
-//     #define TX_ANT_DLY 16372
-//     #define RX_ANT_DLY 16372
-// #elif DEVICE_INDEX == 2
-//     #define TX_ANT_DLY 16366
-//     #define RX_ANT_DLY 16366
-// #elif DEVICE_INDEX == 3
-//     #define TX_ANT_DLY 16370
-//     #define RX_ANT_DLY 16370
-// #else
-//     #error "Invalid DEVICE_INDEX"
-// #endif
-
-#define NRF_UID_0 0x984333D21EA7858FULL
-#define NRF_UID_1 0xA430F6CC89EF287AULL
-#define NRF_UID_2 0xBF8965F181CE8EF5ULL
-#define NRF_UID_3 0xB0E656A4CFB9F2C4ULL
-
 const uint32_t tx_rx_ant_dly[] = {16366, 16372, 16366, 16370};
+
+// #define TIMING_TESTS
+#if defined(TIMING_TESTS)
+static void timing_init(void)
+{
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+    DWT->CYCCNT = 0;
+    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+}
+
+static inline uint32_t timing_now_cycles(void)
+{
+    return DWT->CYCCNT;
+}
+
+static inline uint32_t cycles_to_us(uint32_t cycles)
+{
+    return (uint32_t)(((uint64_t)cycles * 1000000ULL) / (uint64_t)SystemCoreClock);
+}
+
+static inline uint32_t cycles_to_ms(uint32_t cycles)
+{
+    return (uint32_t)(((uint64_t)cycles * 1000ULL) / (uint64_t)SystemCoreClock);
+}
+
+/* Returns percentage scaled by 100 (e.g. 1234 means 12.34%). */
+static inline uint32_t percent_x100(uint32_t part, uint32_t total)
+{
+    if (total == 0U)
+    {
+        return 0U;
+    }
+    return (uint32_t)(((uint64_t)part * 10000ULL) / (uint64_t)total);
+}
+#endif
 
 
 static uint8_t clamp_trim(int val)
@@ -206,9 +225,25 @@ int simple_responder(void)
     sprintf(str_to_print, "Device Index: %lu, Antenna Delay: %lu", (unsigned long)device_index, (unsigned long)TX_RX_ANT_DLY);
     test_run_info((unsigned char *)str_to_print);
 
+    #if defined(TIMING_TESTS)
+    timing_init();
+
+    uint32_t t_start_waiting;
+    uint32_t t_rx_done;
+    uint32_t t_preprocess;
+    uint32_t t_set_trim;
+    uint32_t t_trim_delay;
+    uint32_t t_tx_done;
+    uint32_t t_post_stuff;
+    uint32_t t_end;
+    #endif
+
     /* Loop forever receiving frames. */
     while (TRUE)
     {
+        #if defined(TIMING_TESTS)
+        t_start_waiting = timing_now_cycles();
+        #endif
         /* TESTING BREAKPOINT LOCATION #1 */
 
         /* Note: explicit clearing of the whole RX buffer each loop is unnecessary
@@ -225,6 +260,10 @@ int simple_responder(void)
 
         if (status_reg & DWT_INT_RXFCG_BIT_MASK)
         {
+            #if defined(TIMING_TESTS)
+            t_rx_done = timing_now_cycles();
+            #endif
+
             /* A frame has been received, copy it to our local buffer. */
             frame_len = dwt_getframelength(0);
             if (frame_len <= FRAME_LEN_MAX)
@@ -238,6 +277,10 @@ int simple_responder(void)
             // test_run_info((unsigned char *)"Frame Received");
 
             poll_rx_ts = get_rx_timestamp_u64();
+
+            #if defined(TIMING_TESTS)
+            t_preprocess = timing_now_cycles();
+            #endif
 
             clock_offset_raw = dwt_readclockoffset(); 
             // clock is x parts per million off
@@ -285,7 +328,15 @@ int simple_responder(void)
             }
             /* Write frame data to DW IC and prepare delayed transmission. */
 
+            #if defined(TIMING_TESTS)
+            t_set_trim = timing_now_cycles();
+            #endif
+
             nrf_delay_us(precise_delay_us); 
+
+            #if defined(TIMING_TESTS)
+            t_trim_delay = timing_now_cycles();
+            #endif
 
             dwt_setdelayedtrxtime(resp_tx_time);
             
@@ -294,16 +345,24 @@ int simple_responder(void)
                 waitforsysstatus(NULL, NULL, DWT_INT_TXFRS_BIT_MASK, 0);
                 dwt_writesysstatuslo(DWT_INT_TXFRS_BIT_MASK);
 
-                /* Flash only after the response transmission has completed. */
-                dwt_setleds(DWT_LEDS_ENABLE | DWT_LEDS_INIT_BLINK);
-                nrf_delay_ms(1);
-                dwt_setleds(DWT_LEDS_DISABLE);
+                #if defined(TIMING_TESTS)
+                t_tx_done = timing_now_cycles();
+                #endif
+
+                // /* Flash only after the response transmission has completed. */
+                // dwt_setleds(DWT_LEDS_ENABLE | DWT_LEDS_INIT_BLINK);
+                // nrf_delay_ms(1);
+                // dwt_setleds(DWT_LEDS_DISABLE);
                 
                 // actual_tx_ts = get_tx_timestamp_u64();
                 if (trim_cfo != trim_temp)
                 {
                     dwt_setxtaltrim(trim_cfo);
                 }
+
+                #if defined(TIMING_TESTS)
+                t_post_stuff = timing_now_cycles();
+                #endif
             }
             else
             {
@@ -315,6 +374,34 @@ int simple_responder(void)
             /* Clear RX error events in the DW IC status register. */
             dwt_writesysstatuslo(SYS_STATUS_ALL_RX_ERR);
         }
+
+        #if defined(TIMING_TESTS)
+        uint32_t total_cycles = t_post_stuff - t_rx_done;
+        uint32_t preprocess_cycles = t_preprocess - t_rx_done;
+        uint32_t set_trim_cycles = t_set_trim - t_preprocess;
+        uint32_t trim_delay_cycles = t_trim_delay - t_set_trim;
+        uint32_t tx_cycles = t_tx_done - t_trim_delay;
+        uint32_t post_stuff_cycles = t_post_stuff - t_tx_done;
+
+        sprintf(str_to_print, "Total: %lu us, Preprocess: %lu us, Set Trim: %lu us, Trim Delay: %lu us, TX: %lu us, Post Stuff: %lu us",
+            cycles_to_us(total_cycles), cycles_to_us(preprocess_cycles), cycles_to_us(set_trim_cycles), cycles_to_us(trim_delay_cycles), cycles_to_us(tx_cycles), cycles_to_us(post_stuff_cycles));
+        test_run_info((unsigned char *)str_to_print);
+
+        t_end = timing_now_cycles();
+        uint32_t total_time = t_end - t_start_waiting;
+        sprintf(str_to_print, "Time since last waiting: %lu us", cycles_to_us(total_time));
+        test_run_info((unsigned char *)str_to_print);
+
+        uint32_t some_other_value = timing_now_cycles();
+        uint32_t some_thing = some_other_value - t_rx_done;
+        sprintf(str_to_print, "Some other timing: %lu us", cycles_to_us(some_thing));
+        test_run_info((unsigned char *)str_to_print);
+
+        // printing time
+        uint32_t print_time = timing_now_cycles() - t_end;
+        sprintf(str_to_print, "Print time: %lu us", cycles_to_us(print_time));
+        test_run_info((unsigned char *)str_to_print);
+        #endif
     }
 }
 #endif

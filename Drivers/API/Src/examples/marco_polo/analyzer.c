@@ -18,26 +18,26 @@ static float circular_index_distance(float a, float b, size_t len)
     float diff;
     float wrap_diff;
 
+    diff = a - b;
     if (len == 0) {
-        return fabsf(a - b);
+        return diff;
     }
 
-    diff = fabsf(a - b);
     wrap_diff = (float)len - diff;
 
     return (diff < wrap_diff) ? diff : wrap_diff;
 }
 
-static float circular_forward_difference(float peak, float fp_index, size_t len)
-{
-    float diff = peak - fp_index;
+// static float circular_forward_difference(float peak, float fp_index, size_t len)
+// {
+//     float diff = peak - fp_index;
 
-    if (diff < 0.0f) {
-        diff += (float)len;
-    }
+//     if (diff < 0.0f) {
+//         diff += (float)len;
+//     }
 
-    return diff;
-}
+//     return diff;
+// }
 
 int normalise_and_find_noise_window(cir_data_t *cir_data, float mag_norm_buf[])
 {
@@ -321,7 +321,7 @@ void interval_peak_detection_wrapped_interval(const float *mag,
 
         if (found_peak) {
             float peak = (float)(start + max_index);
-            float distance_to_fp = circular_index_distance(peak, fp_index, len);
+            float distance_to_fp = fabsf(circular_index_distance(peak, fp_index, len));
 
             if (distance_to_fp < (SIGNAL_LENGTH / 2.0f)) {
                 peak = fp_index;
@@ -369,7 +369,7 @@ size_t get_distances(uint64_t rx_time,
             continue;
         }
 
-        double difference = (double)circular_forward_difference(results[i].peak, fp_index, DWT_CIR_LEN_MAX);
+        double difference = (double)circular_index_distance(results[i].peak, fp_index, DWT_CIR_LEN_MAX);
         double relative_time = (double)rx_time + difference * TICKS_PER_CIR_SAMPLE;
         
         if (relative_time < 0.0) {

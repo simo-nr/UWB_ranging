@@ -55,7 +55,7 @@ static float cir_mag_buf[DWT_CIR_LEN_MAX];
 extern dwt_config_t config_options;
 extern dwt_txconfig_t txconfig_options;
 
-#define TIMING_LOOP_COUNT 100U
+#define TIMING_LOOP_COUNT 200U
 
 // #define TIMING_TESTS
 // #define FULL_TIMING

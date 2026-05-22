@@ -43,7 +43,7 @@ extern void test_run_info(unsigned char *data);
 // #define DELTA_I_DTU 1024  // ≈16 ns
 // #define DELTA_I_DTU 8192 // ≈128 ns
 // #define DELTA_I_DTU 32768 // ≈512 ns
-#define DEVICE_INDEX 0 // unique value per device to deterime delay
+#define DEVICE_INDEX 0 // unique value per device to determine delay
 
 #define LEVEL3_TEST_ENABLE 1
 #define LEVEL3_TRIM_DELTA -10
@@ -69,27 +69,28 @@ uint64_t get_nrf_unique_id(void)
     return (id1 << 32) | id0;
 }
 
-#if DEVICE_INDEX == 0 // 0x984333D21EA7858F
-    #define TX_ANT_DLY 16366
-    #define RX_ANT_DLY 16366
-#elif DEVICE_INDEX == 1
-    #define TX_ANT_DLY 16372
-    #define RX_ANT_DLY 16372
-#elif DEVICE_INDEX == 2
-    #define TX_ANT_DLY 16366
-    #define RX_ANT_DLY 16366
-#elif DEVICE_INDEX == 3
-    #define TX_ANT_DLY 16370
-    #define RX_ANT_DLY 16370
-#else
-    #error "Invalid DEVICE_INDEX"
-#endif
+// #if DEVICE_INDEX == 0 // 0x984333D21EA7858F
+//     #define TX_ANT_DLY 16366
+//     #define RX_ANT_DLY 16366
+// #elif DEVICE_INDEX == 1
+//     #define TX_ANT_DLY 16372
+//     #define RX_ANT_DLY 16372
+// #elif DEVICE_INDEX == 2
+//     #define TX_ANT_DLY 16366
+//     #define RX_ANT_DLY 16366
+// #elif DEVICE_INDEX == 3
+//     #define TX_ANT_DLY 16370
+//     #define RX_ANT_DLY 16370
+// #else
+//     #error "Invalid DEVICE_INDEX"
+// #endif
 
-////////
 #define NRF_UID_0 0x984333D21EA7858FULL
-#define NRF_UID_1 0x1111111111111111ULL
-#define NRF_UID_2 0x2222222222222222ULL
-#define NRF_UID_3 0x3333333333333333ULL
+#define NRF_UID_1 0xA430F6CC89EF287AULL
+#define NRF_UID_2 0xBF8965F181CE8EF5ULL
+#define NRF_UID_3 0xB0E656A4CFB9F2C4ULL
+
+const uint32_t tx_rx_ant_dly[] = {16366, 16372, 16366, 16370};
 
 
 static uint8_t clamp_trim(int val)
@@ -180,10 +181,30 @@ int simple_responder(void)
     sprintf(str_to_print, "Device Unique ID: 0x%016llX", (unsigned long long)nrf_uid); 
     test_run_info((unsigned char *)str_to_print);
 
-    // uint32_t dev_id = dwt_readdevid();
-    // sprintf(str_to_print, "Device ID: 0x%08lX", (unsigned long)dev_id); 
-    // // 9: 0xDECA0302
-    // test_run_info((unsigned char *)str_to_print);
+    uint32_t device_index;
+    if (nrf_uid == NRF_UID_0)
+    {
+        device_index = 0;
+    }
+    else if (nrf_uid == NRF_UID_1)
+    {
+        device_index = 1;
+    }
+    else if (nrf_uid == NRF_UID_2)
+    {
+        device_index = 2;
+    }
+    else if (nrf_uid == NRF_UID_3)
+    {
+        device_index = 3;
+    } else {
+        test_run_info((unsigned char *)"Unknown device ID, using default antenna delay");
+        device_index = 0;
+    }
+    uint32_t TX_RX_ANT_DLY = tx_rx_ant_dly[device_index];
+    
+    sprintf(str_to_print, "Device Index: %lu, Antenna Delay: %lu", (unsigned long)device_index, (unsigned long)TX_RX_ANT_DLY);
+    test_run_info((unsigned char *)str_to_print);
 
     /* Loop forever receiving frames. */
     while (TRUE)
@@ -228,12 +249,12 @@ int simple_responder(void)
             uint8_t trim_cfo = clamp_trim((int)trim_base - trim_cfo_steps);
 
             uint64_t resp_delay_dtu = (uint64_t)RESP_TX_DELAY_UUS * UUS_TO_DWT_TIME;
-            uint64_t desired_delay_dtu = resp_delay_dtu + DELTA_I_DTU * DEVICE_INDEX;
+            uint64_t desired_delay_dtu = resp_delay_dtu + DELTA_I_DTU * device_index;
             
-            desired_tx_ts = poll_rx_ts + desired_delay_dtu + TX_ANT_DLY; // add responder specific delay delta_i
+            desired_tx_ts = poll_rx_ts + desired_delay_dtu + TX_RX_ANT_DLY; // add responder specific delay delta_i
 
             resp_tx_time = (uint32_t)((poll_rx_ts + desired_delay_dtu) >> 8); // value for setdelayedtrxtime
-            resp_tx_ts = ((((uint64_t)(resp_tx_time & 0xFFFFFFFEUL)) << 8) + TX_ANT_DLY);
+            resp_tx_ts = ((((uint64_t)(resp_tx_time & 0xFFFFFFFEUL)) << 8) + TX_RX_ANT_DLY);
             
             scheduling_error_dtu = (int64_t)resp_tx_ts - (int64_t)desired_tx_ts;
             double scheduling_error_ns = scheduling_error_dtu * dtu_to_ns;

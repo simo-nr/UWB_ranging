@@ -57,10 +57,10 @@ extern dwt_txconfig_t txconfig_options;
 
 #define TIMING_LOOP_COUNT 100U
 
-#define TIMING_TESTS
-#define FULL_TIMING
-#define LOOP_TIMING
-#define PROC_TIMING
+// #define TIMING_TESTS
+// #define FULL_TIMING
+// #define LOOP_TIMING
+// #define PROC_TIMING
 
 #if defined(TIMING_TESTS) || defined(LOOP_TIMING)
 uint32_t total_elapsed_cycles;
@@ -399,21 +399,21 @@ int simple_initiator(void)
     /* Run one warm-up loop plus TIMING_LOOP_COUNT measured loops. */
     while (counter < ((int)TIMING_LOOP_COUNT + 1))
     {
-        // printf("Starting round %d...\n", counter);
-        // printf("Waiting for button press to start round...\n");
-        // /* Wait for Button 1 (index 0) to be pressed. */
-        // while (!bsp_board_button_state_get(0))
-        // {
-        //     /* Small delay to avoid a tight busy loop. */
-        //     Sleep(10);
-        // }
+        printf("Starting round %d...\n", counter);
+        printf("Waiting for button press to start round...\n");
+        /* Wait for Button 1 (index 0) to be pressed. */
+        while (!bsp_board_button_state_get(0))
+        {
+            /* Small delay to avoid a tight busy loop. */
+            Sleep(10);
+        }
 
-        // /* Simple debounce: wait until the button is released. */
-        // while (bsp_board_button_state_get(0))
-        // {
-        //     Sleep(10);
-        // }
-        // printf("Button pressed, sending frame!\n");
+        /* Simple debounce: wait until the button is released. */
+        while (bsp_board_button_state_get(0))
+        {
+            Sleep(10);
+        }
+        printf("Button pressed, sending frame!\n");
 
         #if defined(TIMING_TESTS) || defined(LOOP_TIMING)
         t_loop_start = timing_now_cycles();
@@ -486,8 +486,8 @@ int simple_initiator(void)
 
             #if defined(TIMING_TESTS) || defined(LOOP_TIMING)
             t_diag_done = timing_now_cycles();
-            #endif
             loop_success = true;
+            #endif
 
             /* Start reading CIR data from Ipatov offset */
             dwt_acc_idx_e acc_idx = DWT_ACC_IDX_IP_M ;
@@ -509,7 +509,7 @@ int simple_initiator(void)
             t_cir_read_done = timing_now_cycles();
             #endif
 
-            // #define PRINT_CIR
+            #define PRINT_CIR
             #if defined(PRINT_CIR)
             sprintf(str_to_print, "RX_TS - TX_TS = %lld dtu\n", (long long)tx_rx_diff);
             test_run_info((unsigned char *)str_to_print);
@@ -550,11 +550,11 @@ int simple_initiator(void)
             t_process_done = timing_now_cycles();
             #endif
 
-            // printf("Test %d: [", counter);
-            // for (int i = 0; i < MAX_RESPONDERS; i++) {
-            //     printf("%.3f, ", distance_results[i].distance);
-            // }
-            // printf("]\n");
+            printf("Test %d: [", counter);
+            for (int i = 0; i < MAX_RESPONDERS; i++) {
+                printf("%.3f, ", distance_results[i].distance);
+            }
+            printf("]\n");
 
             #if defined(TIMING_TESTS) || defined(LOOP_TIMING)
             t_print_done = timing_now_cycles();
@@ -590,7 +590,7 @@ int simple_initiator(void)
         #endif
 
         /* sleep to let the UART finish printing */
-        // nrf_delay_ms(30);
+        nrf_delay_ms(5);
         counter++;
     }
 
